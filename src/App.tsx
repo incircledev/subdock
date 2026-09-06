@@ -30,6 +30,7 @@ import {
   ShieldCheck,
   X,
   CircleHelp,
+  Settings,
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -50,7 +51,7 @@ import {
 import { LocalizedDialogContent as DialogContent } from '@/components/localized-dialog';
 import { useI18n } from '@/components/i18n-provider';
 import { LanguageSwitcher } from '@/components/language-switcher';
-import { ThemeSwitcher } from '@/components/theme-switcher';
+import { applyStoredTheme, ThemeSwitcher } from '@/components/theme-switcher';
 import {
   categories,
   dateString,
@@ -62,6 +63,7 @@ import {
   type Subscription,
 } from '@/lib/subscriptions';
 const STORAGE = 'subdock.subscriptions.v1';
+const DEMO_STORAGE = 'subdock.demoMode.v1';
 const colors: Record<string, string> = {
   影音娱乐: '#8acda8',
   效率工具: '#aeb9f1',
@@ -170,6 +172,8 @@ export default function Home() {
   const [editing, setEditing] = useState<Subscription | null>(null);
   const [open, setOpen] = useState(false);
   const [help, setHelp] = useState(false);
+  const [settings, setSettings] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
   const [removeId, setRemoveId] = useState<string | null>(null);
   const blank = (): Subscription => ({
     id: '',
@@ -185,23 +189,33 @@ export default function Home() {
   });
   const [draft, setDraft] = useState<Subscription>(blank);
   // Restore persisted data and the current date after the first render.
+  // Demo data is opt-in in DEV; persisted records always take precedence.
   /* eslint-disable react/react-compiler */
   useEffect(() => {
+    applyStoredTheme();
     const now = new Date();
     setToday(now);
+    let storedDemoMode = false;
     try {
+      if (import.meta.env.DEV)
+        storedDemoMode = localStorage.getItem(DEMO_STORAGE) === 'true';
+      setDemoMode(storedDemoMode);
       const saved = localStorage.getItem(STORAGE);
       if (saved) {
         const parsed: unknown = JSON.parse(saved);
         if (!Array.isArray(parsed) || !parsed.every(isSubscription))
           throw new Error('invalid');
-        setItems(parsed);
-      } else setItems(sampleSubscriptions(now));
+        setItems(
+          parsed.length === 0 && import.meta.env.DEV && storedDemoMode
+            ? sampleSubscriptions(now)
+            : parsed,
+        );
+      } else if (import.meta.env.DEV && storedDemoMode) {
+        setItems(sampleSubscriptions(now));
+      } else setItems([]);
     } catch {
-      setItems(sampleSubscriptions(now));
-      setNotice(
-        tRef.current('无法读取数据，已载入示例。修改后会尝试重新保存。'),
-      );
+      setItems([]);
+      setNotice(tRef.current('无法读取数据，已载入空列表。'));
     }
     setReady(true);
   }, []);
@@ -229,6 +243,21 @@ export default function Home() {
     } catch {
       setNotice(t('更改已生效，但未能保存。请稍后重试。'));
     }
+  };
+  const toggleDemoMode = (enabled: boolean) => {
+    if (!import.meta.env.DEV) return;
+    setDemoMode(enabled);
+    try {
+      localStorage.setItem(DEMO_STORAGE, String(enabled));
+    } catch {
+      setNotice(t('更改已生效，但未能保存。请稍后重试。'));
+    }
+    const next = enabled
+      ? items.length === 0
+        ? sampleSubscriptions(new Date())
+        : items
+      : items.filter((item) => !/^sample-/.test(item.id));
+    if (next !== items) commit(next, '');
   };
   const active = items.filter((s) => s.active);
   const total = active.reduce((sum, s) => sum + monthlyAmount(s), 0);
@@ -329,8 +358,16 @@ export default function Home() {
             </TabsTrigger>
           </TabsList>
           <div className="header-right">
-            <ThemeSwitcher />
             <LanguageSwitcher />
+            <button
+              className="settings-trigger"
+              onClick={() => setSettings(true)}
+              aria-label={t('打开设置')}
+              title={t('设置')}
+            >
+              <Settings size={17} />
+              <span>{t('设置')}</span>
+            </button>
             <span className="local-label">
               <span />
               {t('个人空间')}
@@ -1057,6 +1094,31 @@ export default function Home() {
               '续费日期是根据你填写的周期推算的，目前不发送系统通知，也不连接支付账户。',
             )}
           </p>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={settings} onOpenChange={setSettings}>
+        <DialogContent className="settings-dialog">
+          <DialogTitle>{t('设置')}</DialogTitle>
+          <DialogDescription>{t('管理你的 Subdock 偏好。')}</DialogDescription>
+          <ThemeSwitcher />
+          {import.meta.env.DEV && (
+            <div className="settings-row">
+              <div>
+                <strong>{t('演示模式')}</strong>
+                <p>{t('使用示例订阅数据预览 Subdock 功能。')}</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={demoMode}
+                aria-label={t('演示模式')}
+                className={demoMode ? 'demo-toggle is-on' : 'demo-toggle'}
+                onClick={() => toggleDemoMode(!demoMode)}
+              >
+                <span />
+              </button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       <output

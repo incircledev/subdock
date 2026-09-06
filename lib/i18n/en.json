@@ -106,10 +106,11 @@
   "删除记录": "Delete record",
   "你的个人订阅空间": "Your personal subscription space",
   "清晰记录，安心管理。": "A clear, calm way to manage subscriptions.",
-  "首次打开时显示的是可编辑的示例数据，费用不代表服务商的实时定价。": "Editable examples appear on your first visit; their prices are illustrative, not current provider prices.",
+  "首次打开时显示的是可编辑的示例数据，费用不代表服务商的实时定价。": "Your list starts empty; in local development, turn on Demo mode in Settings to load sample data.",
   "续费日期是根据你填写的周期推算的，目前不发送系统通知，也不连接支付账户。": "Renewal dates are projected from your billing cycles. System notifications and payment accounts are not currently connected.",
   "关闭提示": "Dismiss message",
   "关闭": "Close",
+  "无法读取数据，已载入空列表。": "Could not read data; showing an empty list.",
   "无法读取数据，已载入示例。修改后会尝试重新保存。": "Could not load your data. Examples are shown; changes will try to save again.",
   "{name} 已加入你的订阅": "{name} added to your subscriptions",
   "更改已生效，但未能保存。请稍后重试。": "Changes applied, but could not be saved. Please try again later.",
@@ -119,6 +120,11 @@
   "订阅已更新": "Subscription updated",
   "Premium 个人": "Premium Individual",
   "标准套餐": "Standard plan",
+  "设置": "Settings",
+  "打开设置": "Open settings",
+  "管理你的 Subdock 偏好。": "Manage your Subdock preferences.",
+  "演示模式": "Demo mode",
+  "使用示例订阅数据预览 Subdock 功能。": "Preview Subdock with sample subscription data.",
   "主题": "Theme",
   "苔原": "Tundra",
   "石墨": "Graphite",
@@ -139,5 +145,6 @@
   "YOUR SUBSCRIPTIONS, IN HARMONY": "YOUR SUBSCRIPTIONS, IN HARMONY",
   "THE BIGGER PICTURE": "THE BIGGER PICTURE",
   "make room for what matters.": "make room for what matters.",
-  "Subdock · 订阅生活，井井有条": "Subdock · Subscriptions in harmony"
+  "Subdock · 订阅生活，井井有条": "Subdock · Subscriptions in harmony",
+  "外观": "Appearance"
 }

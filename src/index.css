@@ -2910,8 +2910,8 @@ html[data-theme] {
   border-color: var(--ring);
 }
 .theme-option.is-selected {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 1px var(--primary);
+  border-color: #00c2a8;
+  box-shadow: 0 0 0 1px #00c2a8;
 }
 .theme-option:focus-within {
   outline: 3px solid var(--ring);
@@ -3207,5 +3207,109 @@ html[data-theme] {
   }
   .subscription-dialog[data-slot='dialog-content'] {
     padding-top: 32px;
+  }
+}
+.settings-trigger {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 11px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 10px;
+  color: var(--foreground);
+  font-size: 13px;
+}
+.settings-trigger:hover {
+  background: var(--secondary);
+}
+.settings-dialog {
+  max-width: 430px;
+  padding: 26px;
+}
+.settings-dialog [data-slot='dialog-title'] {
+  font-size: 22px;
+}
+
+.settings-group-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+}
+.theme-field-label {
+  margin: 8px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.settings-theme {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+.settings-theme .theme-options[data-slot='radio-group'] {
+  margin-top: 8px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+.settings-row strong {
+  display: block;
+  font-size: 15px;
+}
+.settings-row p {
+  margin-top: 5px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.demo-toggle {
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 25px;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--muted);
+  transition: background 0.2s;
+}
+.demo-toggle span {
+  display: block;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--background);
+  box-shadow: 0 1px 3px #0003;
+  transition: transform 0.2s;
+}
+.demo-toggle.is-on {
+  background: var(--primary);
+}
+.demo-toggle.is-on span {
+  transform: translateX(19px);
+}
+@media (max-width: 700px) {
+  .settings-trigger > span {
+    display: none;
+  }
+  .settings-trigger {
+    min-height: 40px;
+    padding: 10px;
   }
 }
