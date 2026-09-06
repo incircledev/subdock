@@ -53,3 +53,10 @@ React 19、TypeScript、Vite、Tailwind CSS、Base UI/Shadcn、Lucide。当前�
 - 日期、星期、年月及数字使用 `Intl`；币种始终为 CNY，不进行汇率换算。
 - 五种语言资源位于 `lib/i18n/*.json`，键与插值参数通过测试保持一致。
 - 分类沿用已有记录的稳定键，用户输入的服务名称、套餐和备注保持原样；示例套餐仅在显示时翻译。
+
+## 数据分析
+
+GA4
+Measurement ID: G-4ZZ79CB412
+Production only.
+Does not load in development.
