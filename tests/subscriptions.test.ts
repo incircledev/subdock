@@ -5,6 +5,7 @@ import {
   monthlyAmount,
   nextRenewal,
   isSubscription,
+  normalizeSubscription,
   sampleSubscriptions,
   daysUntil,
 } from '../lib/subscriptions.ts';
@@ -60,6 +61,14 @@ void test('invalid stored entries, impossible dates and invalid prices are rejec
     { category: 'unknown' },
     { active: 'yes' },
     { cycle: 'weekly' },
+    { currency: 'BTC' },
   ])
     assert.equal(isSubscription({ ...base, ...patch }), false);
+});
+
+void test('legacy subscriptions migrate to CNY without changing their amount', () => {
+  const { currency: _currency, ...legacy } = base;
+  const migrated = normalizeSubscription(legacy);
+  assert.equal(migrated?.currency, 'CNY');
+  assert.equal(migrated?.amount, base.amount);
 });

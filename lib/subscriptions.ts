@@ -1,8 +1,15 @@
+import {
+  DEFAULT_CURRENCY,
+  isCurrencyCode,
+  type CurrencyCode,
+} from './currencies.ts';
+
 export type Subscription = {
   id: string;
   name: string;
   plan: string;
   amount: number;
+  currency: CurrencyCode;
   cycle: 'monthly' | 'yearly';
   date: string;
   category: string;
@@ -74,6 +81,7 @@ export function isSubscription(value: unknown): value is Subscription {
     Number.isFinite(s.amount) &&
     s.amount > 0 &&
     s.amount <= 10000000 &&
+    isCurrencyCode(s.currency) &&
     ['monthly', 'yearly'].includes(s.cycle) &&
     categories.includes(s.category) &&
     typeof s.date === 'string' &&
@@ -81,6 +89,15 @@ export function isSubscription(value: unknown): value is Subscription {
     !Number.isNaN(parseDate(s.date).getTime()) &&
     dateString(parseDate(s.date)) === s.date
   );
+}
+
+export function normalizeSubscription(value: unknown): Subscription | null {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = {
+    ...(value as Record<string, unknown>),
+    currency: (value as { currency?: unknown }).currency || DEFAULT_CURRENCY,
+  };
+  return isSubscription(candidate) ? candidate : null;
 }
 export function sampleSubscriptions(today: Date): Subscription[] {
   const rows = [
@@ -99,6 +116,7 @@ export function sampleSubscriptions(today: Date): Subscription[] {
       name: String(name),
       plan: String(plan),
       amount: Number(amount),
+      currency: DEFAULT_CURRENCY,
       cycle: cycle as Subscription['cycle'],
       date: dateString(next),
       category: String(category),

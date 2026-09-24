@@ -19,8 +19,8 @@ export function initAnalytics(): void {
   document.head.appendChild(script)
 
   window.dataLayer = window.dataLayer || []
-  window.gtag = function (..._args: unknown[]): void {
-    window.dataLayer.push(arguments)
+  window.gtag = function (...args: unknown[]): void {
+    window.dataLayer.push(args)
   }
   window.gtag('js', new Date())
   window.gtag('config', MEASUREMENT_ID)

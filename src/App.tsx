@@ -59,11 +59,27 @@ import {
   nextRenewal,
   daysUntil,
   isSubscription,
+  normalizeSubscription,
   sampleSubscriptions,
   type Subscription,
 } from '@/lib/subscriptions';
+import {
+  currencies,
+  convertCurrency,
+  currencyDisplayParts,
+  DEFAULT_CURRENCY,
+  EXCHANGE_RATE_URL,
+  formatCurrency,
+  isCurrencyCode,
+  parseExchangeRates,
+  type CurrencyCode,
+  type ExchangeRates,
+} from '@/lib/currencies';
 const STORAGE = 'subdock.subscriptions.v1';
 const DEMO_STORAGE = 'subdock.demoMode.v1';
+const CURRENCY_STORAGE = 'subdock.displayCurrency.v1';
+const RATE_STORAGE = 'subdock.exchangeRates.v1';
+const RATE_MAX_AGE = 24 * 60 * 60 * 1000;
 const colors: Record<string, string> = {
   影音娱乐: '#8acda8',
   效率工具: '#aeb9f1',
@@ -143,11 +159,8 @@ export default function Home() {
   useEffect(() => {
     tRef.current = t;
   }, [t]);
-  const money = (n: number) =>
-    new Intl.NumberFormat(locale, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
+  const money = (n: number, currency: CurrencyCode) =>
+    formatCurrency(locale, n, currency);
   const shortDate = (date: Date) =>
     new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(
       date,
@@ -174,12 +187,22 @@ export default function Home() {
   const [help, setHelp] = useState(false);
   const [settings, setSettings] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
+  const [displayCurrency, setDisplayCurrency] =
+    useState<CurrencyCode>(DEFAULT_CURRENCY);
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRates | null>(
+    null,
+  );
+  const [rateDate, setRateDate] = useState('');
+  const [rateStatus, setRateStatus] = useState<
+    'loading' | 'ready' | 'cached' | 'unavailable'
+  >('loading');
   const [removeId, setRemoveId] = useState<string | null>(null);
   const blank = (): Subscription => ({
     id: '',
     name: '',
     plan: '',
     amount: 0,
+    currency: displayCurrency,
     cycle: 'monthly',
     date: dateString(today),
     category: '效率工具',
@@ -200,15 +223,26 @@ export default function Home() {
       if (import.meta.env.DEV)
         storedDemoMode = localStorage.getItem(DEMO_STORAGE) === 'true';
       setDemoMode(storedDemoMode);
+      const storedCurrency = localStorage.getItem(CURRENCY_STORAGE);
+      if (isCurrencyCode(storedCurrency)) setDisplayCurrency(storedCurrency);
       const saved = localStorage.getItem(STORAGE);
       if (saved) {
         const parsed: unknown = JSON.parse(saved);
-        if (!Array.isArray(parsed) || !parsed.every(isSubscription))
-          throw new Error('invalid');
+        if (!Array.isArray(parsed)) throw new Error('invalid');
+        const normalized = parsed.map(normalizeSubscription);
+        if (normalized.some((item) => !item)) throw new Error('invalid');
+        const restored = normalized as Subscription[];
+        if (parsed.some((item) => !isSubscription(item))) {
+          try {
+            localStorage.setItem(STORAGE, JSON.stringify(restored));
+          } catch {
+            // The migrated records can still be used for this session.
+          }
+        }
         setItems(
-          parsed.length === 0 && import.meta.env.DEV && storedDemoMode
+          restored.length === 0 && import.meta.env.DEV && storedDemoMode
             ? sampleSubscriptions(now)
-            : parsed,
+            : restored,
         );
       } else if (import.meta.env.DEV && storedDemoMode) {
         setItems(sampleSubscriptions(now));
@@ -218,6 +252,64 @@ export default function Home() {
       setNotice(tRef.current('无法读取数据，已载入空列表。'));
     }
     setReady(true);
+  }, []);
+  /* eslint-enable react/react-compiler */
+  /* eslint-disable react/react-compiler */
+  useEffect(() => {
+    const controller = new AbortController();
+    let cachedAt = 0;
+    try {
+      const saved = localStorage.getItem(RATE_STORAGE);
+      if (saved) {
+        const cached = JSON.parse(saved) as {
+          fetchedAt?: unknown;
+          date?: unknown;
+          rates?: unknown;
+        };
+        const parsed = parseExchangeRates({ rates: cached.rates });
+        if (parsed && Number(cached.fetchedAt) > 0) {
+          cachedAt = Number(cached.fetchedAt);
+          setExchangeRates(parsed);
+          setRateDate(typeof cached.date === 'string' ? cached.date : '');
+          setRateStatus('cached');
+        }
+      }
+    } catch {
+      // A malformed rate cache is safe to ignore and replace.
+    }
+
+    if (Date.now() - cachedAt < RATE_MAX_AGE) {
+      setRateStatus('ready');
+      return () => controller.abort();
+    }
+
+    void fetch(EXCHANGE_RATE_URL, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('rate request failed');
+        const payload: unknown = await response.json();
+        const parsed = parseExchangeRates(payload);
+        if (!parsed) throw new Error('invalid rates');
+        const first = Array.isArray(payload) ? payload[0] : null;
+        const date =
+          first && typeof first === 'object' && 'date' in first
+            ? String(first.date)
+            : dateString(new Date());
+        const cache = { fetchedAt: Date.now(), date, rates: parsed };
+        try {
+          localStorage.setItem(RATE_STORAGE, JSON.stringify(cache));
+        } catch {
+          // Fresh rates remain usable even when the cache cannot be written.
+        }
+        setExchangeRates(parsed);
+        setRateDate(date);
+        setRateStatus('ready');
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError')
+          return;
+        setRateStatus(cachedAt ? 'cached' : 'unavailable');
+      });
+    return () => controller.abort();
   }, []);
   /* eslint-enable react/react-compiler */
   useEffect(() => {
@@ -244,6 +336,14 @@ export default function Home() {
       setNotice(t('更改已生效，但未能保存。请稍后重试。'));
     }
   };
+  const changeDisplayCurrency = (currency: CurrencyCode) => {
+    setDisplayCurrency(currency);
+    try {
+      localStorage.setItem(CURRENCY_STORAGE, currency);
+    } catch {
+      setNotice(t('本位币已切换，但未能保存偏好。'));
+    }
+  };
   const toggleDemoMode = (enabled: boolean) => {
     if (!import.meta.env.DEV) return;
     setDemoMode(enabled);
@@ -256,11 +356,20 @@ export default function Home() {
       ? items.length === 0
         ? sampleSubscriptions(new Date())
         : items
-      : items.filter((item) => !/^sample-/.test(item.id));
+      : items.filter((item) => !item.id.startsWith('sample-'));
     if (next !== items) commit(next, '');
   };
   const active = items.filter((s) => s.active);
-  const total = active.reduce((sum, s) => sum + monthlyAmount(s), 0);
+  const convertedAmount = (s: Subscription, amount = s.amount) =>
+    convertCurrency(amount, s.currency, displayCurrency, exchangeRates);
+  const convertedMonthlyAmount = (s: Subscription) =>
+    convertedAmount(s, monthlyAmount(s));
+  const totalParts = active.map(convertedMonthlyAmount);
+  const totalsAvailable = totalParts.every((amount) => amount !== null);
+  const total = totalsAvailable
+    ? totalParts.reduce<number>((sum, amount) => sum + (amount || 0), 0)
+    : null;
+  const totalValue = total || 0;
   const upcoming = useMemo(
     () =>
       items
@@ -279,7 +388,7 @@ export default function Home() {
     )
     .sort((a, b) =>
       sort === 'amount'
-        ? monthlyAmount(b) - monthlyAmount(a)
+        ? (convertedMonthlyAmount(b) || 0) - (convertedMonthlyAmount(a) || 0)
         : sort === 'name'
           ? a.name.localeCompare(b.name, locale)
           : nextRenewal(a, today).getTime() - nextRenewal(b, today).getTime(),
@@ -288,13 +397,13 @@ export default function Home() {
     name,
     amount: active
       .filter((s) => s.category === name)
-      .reduce((sum, s) => sum + monthlyAmount(s), 0),
+      .reduce((sum, s) => sum + (convertedMonthlyAmount(s) || 0), 0),
   }));
   let angle = 0;
   const pie = breakdown
     .map((b) => {
       const from = angle;
-      angle += total ? (b.amount / total) * 100 : 0;
+      angle += totalValue ? (b.amount / totalValue) * 100 : 0;
       return `${colors[b.name]} ${from}% ${angle}%`;
     })
     .join(', ');
@@ -310,6 +419,20 @@ export default function Home() {
         s.next.getMonth() === month.getMonth() &&
         s.next.getFullYear() === month.getFullYear(),
     );
+  const monthlyDisplay = currencyDisplayParts(
+    locale,
+    totalValue,
+    displayCurrency,
+  );
+  const annualDisplay = currencyDisplayParts(
+    locale,
+    totalValue * 12,
+    displayCurrency,
+  );
+  const monthEventAmounts = monthEvents.map((s) => convertedAmount(s));
+  const monthEventTotal = monthEventAmounts.every((amount) => amount !== null)
+    ? monthEventAmounts.reduce<number>((sum, amount) => sum + (amount || 0), 0)
+    : null;
   const startEdit = (s?: Subscription) => {
     setEditing(s || null);
     setDraft(s ? { ...s } : blank());
@@ -420,15 +543,32 @@ export default function Home() {
                     {t('每月订阅支出')}
                   </span>
                   <span className="glass-pill">
-                    CNY <ArrowDownLeft size={13} />
+                    {displayCurrency} <ArrowDownLeft size={13} />
                   </span>
                 </div>
                 <div className="spend-amount">
-                  <span>¥</span>
-                  {money(total).split('.')[0]}
-                  <span className="cents">.{money(total).split('.')[1]}</span>
+                  {total === null ? (
+                    <span className="amount-unavailable">—</span>
+                  ) : (
+                    <>
+                      <span>{monthlyDisplay.symbol}</span>
+                      {monthlyDisplay.integer}
+                      {monthlyDisplay.fraction && (
+                        <span className="cents">
+                          {monthlyDisplay.decimal}
+                          {monthlyDisplay.fraction}
+                        </span>
+                      )}
+                    </>
+                  )}
                 </div>
-                <p>{t('年付订阅已折算为月均费用')}</p>
+                <p>
+                  {total === null
+                    ? rateStatus === 'loading'
+                      ? t('正在获取汇率…')
+                      : t('汇率暂不可用，原币金额仍完整保留。')
+                    : t('年付订阅已折算为月均费用')}
+                </p>
                 <div className="spend-bottom">
                   <div className="stacked-logos">
                     {active.slice(0, 4).map((s) => (
@@ -473,11 +613,20 @@ export default function Home() {
                     <ArrowUpRight size={17} />
                   </div>
                   <div className="stat-number annual">
-                    <span className="currency">¥</span>
-                    {money(total * 12).split('.')[0]}
-                    <span className="annual-cents">
-                      .{money(total * 12).split('.')[1]}
-                    </span>
+                    {total === null ? (
+                      '—'
+                    ) : (
+                      <>
+                        <span className="currency">{annualDisplay.symbol}</span>
+                        {annualDisplay.integer}
+                        {annualDisplay.fraction && (
+                          <span className="annual-cents">
+                            {annualDisplay.decimal}
+                            {annualDisplay.fraction}
+                          </span>
+                        )}
+                      </>
+                    )}
                   </div>
                   <div className="stat-note">{t('按当前有效订阅估算')}</div>
                 </div>
@@ -508,7 +657,7 @@ export default function Home() {
                           </span>
                         </span>
                         <strong className="renewal-price">
-                          ¥{money(s.amount)}
+                          {money(s.amount, s.currency)}
                         </strong>
                       </button>
                     ))}
@@ -634,10 +783,7 @@ export default function Home() {
                         <ArrowUpRight size={17} className="card-arrow" />
                       </div>
                       <div className="card-price">
-                        <strong>
-                          <span>¥</span>
-                          {money(s.amount)}
-                        </strong>
+                        <strong>{money(s.amount, s.currency)}</strong>
                         <span>
                           / {s.cycle === 'monthly' ? t('月') : t('年')}
                         </span>
@@ -740,8 +886,9 @@ export default function Home() {
                     {t('{count} 笔续费 · 合计 {amount}', {
                       count: monthEvents.length,
                       amount:
-                        '¥' +
-                        money(monthEvents.reduce((n, s) => n + s.amount, 0)),
+                        monthEventTotal === null
+                          ? '—'
+                          : money(monthEventTotal, displayCurrency),
                     })}
                   </p>
                 </div>
@@ -798,12 +945,12 @@ export default function Home() {
                             className="calendar-event"
                             key={s.id}
                             onClick={() => startEdit(s)}
-                            title={`${s.name} ¥${money(s.amount)}`}
+                            title={`${s.name} ${money(s.amount, s.currency)}`}
                           >
                             <Logo brand={s.brand} name={s.name} small />
                             <span>
                               {s.name}
-                              <small>¥{money(s.amount)}</small>
+                              <small>{money(s.amount, s.currency)}</small>
                             </span>
                           </button>
                         ))}
@@ -828,12 +975,16 @@ export default function Home() {
                 <div
                   className="donut"
                   style={{
-                    background: total ? `conic-gradient(${pie})` : '#e9eae7',
+                    background: totalValue
+                      ? `conic-gradient(${pie})`
+                      : '#e9eae7',
                   }}
                 >
                   <div>
                     <span>{t('每月合计')}</span>
-                    <strong>¥{money(total)}</strong>
+                    <strong>
+                      {total === null ? '—' : money(total, displayCurrency)}
+                    </strong>
                     <small>
                       {t('{count} 个有效订阅', { count: active.length })}
                     </small>
@@ -848,16 +999,19 @@ export default function Home() {
                           {t(b.name)}
                         </span>
                         <strong>
-                          ¥{money(b.amount)}{' '}
+                          {money(b.amount, displayCurrency)}{' '}
                           <small>
-                            {total ? Math.round((b.amount / total) * 100) : 0}%
+                            {totalValue
+                              ? Math.round((b.amount / totalValue) * 100)
+                              : 0}
+                            %
                           </small>
                         </strong>
                       </div>
                       <div className="bar-track">
                         <div
                           style={{
-                            width: `${total ? (b.amount / total) * 100 : 0}%`,
+                            width: `${totalValue ? (b.amount / totalValue) * 100 : 0}%`,
                             background: colors[b.name],
                           }}
                         />
@@ -872,7 +1026,10 @@ export default function Home() {
                   {t('仅统计有效订阅，年付费用按 12 个月均摊。')}
                 </span>
                 <strong>
-                  {t('年度预计 {amount}', { amount: '¥' + money(total * 12) })}
+                  {t('年度预计 {amount}', {
+                    amount:
+                      total === null ? '—' : money(total * 12, displayCurrency),
+                  })}
                 </strong>
               </div>
             </section>
@@ -896,7 +1053,7 @@ export default function Home() {
             {editing ? t('管理订阅') : t('添加一份喜欢')}
           </DialogTitle>
           <DialogDescription>
-            {t('记录订阅费用与续费日期，所有金额均以人民币计。')}
+            {t('记录原始费用与续费日期，汇总时自动换算为本位币。')}
           </DialogDescription>
           <form onSubmit={save} className="subscription-form">
             <div className="form-brand">
@@ -948,7 +1105,7 @@ export default function Home() {
             </label>
             <div className="form-columns">
               <label>
-                {t('金额（CNY）')}
+                {t('金额')}
                 <input
                   type="number"
                   min="0.01"
@@ -963,6 +1120,22 @@ export default function Home() {
                 />
               </label>
               <div className="form-field">
+                <span>{t('货币')}</span>
+                <Picker
+                  label={t('货币')}
+                  value={draft.currency}
+                  onChange={(v) =>
+                    setDraft({ ...draft, currency: v as CurrencyCode })
+                  }
+                  options={currencies.map((currency) => ({
+                    value: currency,
+                    label: `${currency} · ${t(currency)}`,
+                  }))}
+                />
+              </div>
+            </div>
+            <div className="form-columns">
+              <div className="form-field">
                 <span>{t('付款周期')}</span>
                 <Picker
                   label={t('付款周期')}
@@ -976,8 +1149,6 @@ export default function Home() {
                   ]}
                 />
               </div>
-            </div>
-            <div className="form-columns">
               <label>
                 {t('下一次续费')}
                 <input
@@ -989,15 +1160,15 @@ export default function Home() {
                   onChange={(e) => setDraft({ ...draft, date: e.target.value })}
                 />
               </label>
-              <div className="form-field">
-                <span>{t('分类')}</span>
-                <Picker
-                  label={t('分类')}
-                  value={draft.category}
-                  onChange={(v) => setDraft({ ...draft, category: v })}
-                  options={categories.map((c) => ({ value: c, label: t(c) }))}
-                />
-              </div>
+            </div>
+            <div className="form-field">
+              <span>{t('分类')}</span>
+              <Picker
+                label={t('分类')}
+                value={draft.category}
+                onChange={(v) => setDraft({ ...draft, category: v })}
+                options={categories.map((c) => ({ value: c, label: t(c) }))}
+              />
             </div>
             <label>
               {t('备注')}
@@ -1100,6 +1271,28 @@ export default function Home() {
         <DialogContent className="settings-dialog">
           <DialogTitle>{t('设置')}</DialogTitle>
           <DialogDescription>{t('管理你的 Subdock 偏好。')}</DialogDescription>
+          <div className="settings-row settings-currency">
+            <div>
+              <strong>{t('统计本位币')}</strong>
+              <p>{t('总览与洞察会将不同货币换算后汇总。')}</p>
+              <p className="rate-status">
+                {rateDate
+                  ? t('汇率更新于 {date}', { date: rateDate })
+                  : rateStatus === 'loading'
+                    ? t('正在获取汇率…')
+                    : t('汇率暂不可用，原币金额仍完整保留。')}
+              </p>
+            </div>
+            <Picker
+              label={t('统计本位币')}
+              value={displayCurrency}
+              onChange={(value) => changeDisplayCurrency(value as CurrencyCode)}
+              options={currencies.map((currency) => ({
+                value: currency,
+                label: currency,
+              }))}
+            />
+          </div>
           <ThemeSwitcher />
           {import.meta.env.DEV && (
             <div className="settings-row">

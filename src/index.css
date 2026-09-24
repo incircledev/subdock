@@ -579,6 +579,10 @@ h1 {
   font-size: 0.65em;
   letter-spacing: -2px;
 }
+.spend-amount .amount-unavailable {
+  margin-right: 0;
+  font-size: 1em;
+}
 .spend-card > p {
   font-size: 12px;
   color: hsl(
@@ -3277,6 +3281,21 @@ html[data-theme] {
   color: var(--muted-foreground);
   font-size: 12px;
   line-height: 1.6;
+}
+.settings-currency > div {
+  min-width: 0;
+}
+.settings-currency .picker {
+  flex: 0 0 auto;
+  width: 104px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--background);
+}
+.settings-row .rate-status {
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
 }
 .demo-toggle {
   position: relative;
