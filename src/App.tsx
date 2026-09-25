@@ -20,8 +20,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Layers,
-  Music2,
-  Cloud,
   Sparkles,
   Check,
   Pause,
@@ -32,6 +30,27 @@ import {
   CircleHelp,
   Settings,
 } from 'lucide-react';
+import {
+  siBilibili,
+  siClaude,
+  siCursor,
+  siDeepseek,
+  siGithubcopilot,
+  siGooglegemini,
+  siIcloud,
+  siKimi,
+  siMinimax,
+  siMistralai,
+  siNetflix,
+  siNeteasecloudmusic,
+  siNotion,
+  siPerplexity,
+  siQwen,
+  siSpotify,
+  siSuno,
+  siVercel,
+  siWeread,
+} from 'simple-icons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -51,9 +70,9 @@ import {
 import { LocalizedDialogContent as DialogContent } from '@/components/localized-dialog';
 import { useI18n } from '@/components/i18n-provider';
 import { LanguageSwitcher } from '@/components/language-switcher';
-import { applyStoredTheme, ThemeSwitcher } from '@/components/theme-switcher';
 import {
   categories,
+  brandForService,
   dateString,
   monthlyAmount,
   nextRenewal,
@@ -86,6 +105,47 @@ const colors: Record<string, string> = {
   'AI 助手': '#eccf8e',
   云端存储: '#a3d9ed',
 };
+const serviceIcons: Record<string, string> = {
+  spotify: siSpotify.path,
+  notion: siNotion.path,
+  apple: siIcloud.path,
+  netflix: siNetflix.path,
+  vercel: siVercel.path,
+  bilibili: siBilibili.path,
+  netease: siNeteasecloudmusic.path,
+  weread: siWeread.path,
+  claude: siClaude.path,
+  gemini: siGooglegemini.path,
+  perplexity: siPerplexity.path,
+  cursor: siCursor.path,
+  deepseek: siDeepseek.path,
+  kimi: siKimi.path,
+  qwen: siQwen.path,
+  'github-copilot': siGithubcopilot.path,
+  suno: siSuno.path,
+  minimax: siMinimax.path,
+  mistral: siMistralai.path,
+};
+const serviceImages: Record<string, string> = {
+  'tencent-video': '/service-icons/tencent-video.ico',
+  youku: '/service-icons/youku.ico',
+  'qq-music': '/service-icons/qq-music.ico',
+  'baidu-netdisk': '/service-icons/baidu-netdisk.ico',
+  'wps-office': '/service-icons/wps-office.ico',
+  openai: '/service-icons/openai.svg',
+  grok: '/service-icons/grok.svg',
+  copilot: '/service-icons/copilot.svg',
+  midjourney: '/service-icons/midjourney.svg',
+  doubao: '/service-icons/doubao.svg',
+  wenxin: '/service-icons/wenxin.svg',
+  yuanbao: '/service-icons/yuanbao.svg',
+  zhipu: '/service-icons/zhipu.svg',
+  hailuo: '/service-icons/hailuo.svg',
+  kling: '/service-icons/kling.svg',
+  jimeng: '/service-icons/jimeng.svg',
+  xinghuo: '/service-icons/xinghuo.svg',
+  manus: '/service-icons/manus.svg',
+};
 function Logo({
   brand,
   name,
@@ -95,23 +155,18 @@ function Logo({
   name: string;
   small?: boolean;
 }) {
+  const resolvedBrand = brand === 'custom' ? brandForService(name) : brand;
   return (
     <span
-      className={`service-logo ${brand} ${small ? 'small' : ''}`}
+      className={`service-logo ${resolvedBrand} ${small ? 'small' : ''}`}
       aria-hidden="true"
     >
-      {brand === 'spotify' ? (
-        <Music2 />
-      ) : brand === 'notion' ? (
-        <span className="notion-letter">N</span>
-      ) : brand === 'openai' ? (
-        <Sparkles />
-      ) : brand === 'apple' ? (
-        <Cloud />
-      ) : brand === 'netflix' ? (
-        <b>N</b>
-      ) : brand === 'vercel' ? (
-        <span className="triangle" />
+      {serviceImages[resolvedBrand] ? (
+        <img src={serviceImages[resolvedBrand]} alt="" />
+      ) : serviceIcons[resolvedBrand] ? (
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d={serviceIcons[resolvedBrand]} />
+        </svg>
       ) : (
         <span>{name.slice(0, 1).toUpperCase()}</span>
       )}
@@ -215,7 +270,6 @@ export default function Home() {
   // Demo data is opt-in in DEV; persisted records always take precedence.
   /* eslint-disable react/react-compiler */
   useEffect(() => {
-    applyStoredTheme();
     const now = new Date();
     setToday(now);
     let storedDemoMode = false;
@@ -1076,18 +1130,10 @@ export default function Home() {
                 value={draft.name}
                 onChange={(e) => {
                   const name = e.target.value;
-                  const brands: Record<string, string> = {
-                    spotify: 'spotify',
-                    notion: 'notion',
-                    chatgpt: 'openai',
-                    'apple icloud+': 'apple',
-                    netflix: 'netflix',
-                    vercel: 'vercel',
-                  };
                   setDraft({
                     ...draft,
                     name,
-                    brand: brands[name.toLowerCase()] || 'custom',
+                    brand: brandForService(name),
                   });
                 }}
               />
@@ -1293,7 +1339,6 @@ export default function Home() {
               }))}
             />
           </div>
-          <ThemeSwitcher />
           {import.meta.env.DEV && (
             <div className="settings-row">
               <div>

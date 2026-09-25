@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  brandForService,
   dateString,
   monthlyAmount,
   nextRenewal,
@@ -10,6 +11,74 @@ import {
   daysUntil,
 } from '../lib/subscriptions.ts';
 const base = sampleSubscriptions(new Date(2026, 8, 5))[0];
+void test('known service names select their icons without affecting custom names', () => {
+  for (const [name, brand] of [
+    ['Spotify', 'spotify'],
+    ['Notion', 'notion'],
+    ['ChatGPT', 'openai'],
+    ['ChatGPT Pro', 'openai'],
+    ['Claude Max', 'claude'],
+    ['Claude.ai', 'claude'],
+    ['Google AI Pro', 'gemini'],
+    ['Gemini', 'gemini'],
+    ['SuperGrok', 'grok'],
+    ['x.ai', 'grok'],
+    ['Microsoft 365 Copilot', 'copilot'],
+    ['GitHub Copilot', 'github-copilot'],
+    ['Perplexity Pro', 'perplexity'],
+    ['Cursor Pro', 'cursor'],
+    ['Midjourney', 'midjourney'],
+    ['DeepSeek', 'deepseek'],
+    ['深度求索', 'deepseek'],
+    ['Kimi+', 'kimi'],
+    ['月之暗面', 'kimi'],
+    ['通义千问', 'qwen'],
+    ['豆包', 'doubao'],
+    ['文心一言', 'wenxin'],
+    ['腾讯元宝', 'yuanbao'],
+    ['智谱清言', 'zhipu'],
+    ['ChatGLM', 'zhipu'],
+    ['MiniMax', 'minimax'],
+    ['海螺AI', 'hailuo'],
+    ['Suno', 'suno'],
+    ['可灵', 'kling'],
+    ['即梦', 'jimeng'],
+    ['Dreamina', 'jimeng'],
+    ['讯飞星火', 'xinghuo'],
+    ['Le Chat', 'mistral'],
+    ['Manus', 'manus'],
+    ['Apple iCloud+', 'apple'],
+    ['Netflix', 'netflix'],
+    ['Vercel', 'vercel'],
+    ['哔哩哔哩大会员', 'bilibili'],
+    ['B站', 'bilibili'],
+    ['网易云音乐黑胶VIP', 'netease'],
+    ['NetEase Cloud Music', 'netease'],
+    ['腾讯视频VIP', 'tencent-video'],
+    ['Tencent Video', 'tencent-video'],
+    ['爱奇艺', 'iqiyi'],
+    ['iQIYI', 'iqiyi'],
+    ['优酷视频', 'youku'],
+    ['QQ音乐绿钻', 'qq-music'],
+    ['QQ Music', 'qq-music'],
+    ['百度网盘超级会员', 'baidu-netdisk'],
+    ['阿里云盘', 'aliyun-drive'],
+    ['WPS超级会员', 'wps-office'],
+    ['WPS Office', 'wps-office'],
+    ['微信读书无限卡', 'weread'],
+    ['WeRead', 'weread'],
+  ])
+    assert.equal(brandForService(name), brand);
+  assert.equal(brandForService('  CHATGPT   Plus  '), 'openai');
+  assert.equal(brandForService('iCloud+'), 'apple');
+  assert.equal(brandForService('My own service'), 'custom');
+  assert.equal(brandForService('视频会员'), 'custom');
+  assert.equal(brandForService('Copilot'), 'copilot');
+  assert.equal(brandForService('文心一格'), 'custom');
+  assert.equal(brandForService('通义万相'), 'custom');
+  assert.equal(brandForService('X Premium'), 'custom');
+});
+
 void test('yearly amounts are normalized and the seeded monthly total is accurate', () => {
   const items = sampleSubscriptions(new Date(2026, 8, 5));
   assert.equal(monthlyAmount(items[5]), 120);
