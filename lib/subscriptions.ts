@@ -17,7 +17,7 @@ export type Subscription = {
   active: boolean;
   notes: string;
 };
-export const categories = ['影音娱乐', '效率工具', 'AI 助手', '云端存储'];
+export const categories = ['影音娱乐', '效率工具', 'AI 助手', '云端存储', '生活支出'];
 const serviceBrands: Record<string, string> = {
   spotify: 'spotify',
   notion: 'notion',

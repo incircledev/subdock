@@ -104,6 +104,7 @@ const colors: Record<string, string> = {
   效率工具: '#aeb9f1',
   'AI 助手': '#eccf8e',
   云端存储: '#a3d9ed',
+  生活支出: '#e6b8a2',
 };
 const serviceIcons: Record<string, string> = {
   spotify: siSpotify.path,
