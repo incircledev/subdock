@@ -13,6 +13,27 @@ import {
 const base = sampleSubscriptions(new Date(2026, 8, 5))[0];
 void test('known service names select their icons without affecting custom names', () => {
   for (const [name, brand] of [
+    ['X', 'x'],
+    ['X Premium+', 'x'],
+    ['X Premium Plus', 'x'],
+    ['X Basic', 'x'],
+    ['Twitter', 'x'],
+    ['Twitter Blue', 'x'],
+    ['推特', 'x'],
+    ['推特会员', 'x'],
+    ['中国移动', 'china-mobile'],
+    ['中國移動', 'china-mobile'],
+    ['China Mobile', 'china-mobile'],
+    ['中国电信', 'china-telecom'],
+    ['中國電信', 'china-telecom'],
+    ['China Telecom', 'china-telecom'],
+    ['中国联通', 'china-unicom'],
+    ['中國聯通', 'china-unicom'],
+    ['China Unicom', 'china-unicom'],
+    ['中国广电', 'china-broadnet'],
+    ['中國廣電', 'china-broadnet'],
+    ['China Broadnet', 'china-broadnet'],
+    ['China Broadcasting Network', 'china-broadnet'],
     ['Spotify', 'spotify'],
     ['Notion', 'notion'],
     ['ChatGPT', 'openai'],
@@ -76,7 +97,9 @@ void test('known service names select their icons without affecting custom names
   assert.equal(brandForService('Copilot'), 'copilot');
   assert.equal(brandForService('文心一格'), 'custom');
   assert.equal(brandForService('通义万相'), 'custom');
-  assert.equal(brandForService('X Premium'), 'custom');
+  assert.equal(brandForService('X Premium'), 'x');
+  assert.equal(brandForService('  CHINA   MOBILE  '), 'china-mobile');
+  assert.equal(brandForService('X unrelated service'), 'custom');
 });
 
 void test('yearly amounts are normalized and the seeded monthly total is accurate', () => {

@@ -50,6 +50,7 @@ import {
   siSuno,
   siVercel,
   siWeread,
+  siX,
 } from 'simple-icons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -107,6 +108,7 @@ const colors: Record<string, string> = {
   生活支出: '#e6b8a2',
 };
 const serviceIcons: Record<string, string> = {
+  x: siX.path,
   spotify: siSpotify.path,
   notion: siNotion.path,
   apple: siIcloud.path,
@@ -128,6 +130,10 @@ const serviceIcons: Record<string, string> = {
   mistral: siMistralai.path,
 };
 const serviceImages: Record<string, string> = {
+  'china-mobile': '/service-icons/china-mobile.svg',
+  'china-telecom': '/service-icons/china-telecom.svg',
+  'china-unicom': '/service-icons/china-unicom.svg',
+  'china-broadnet': '/service-icons/china-broadnet.svg',
   'tencent-video': '/service-icons/tencent-video.ico',
   youku: '/service-icons/youku.ico',
   'qq-music': '/service-icons/qq-music.ico',

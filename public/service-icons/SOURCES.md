@@ -5,6 +5,11 @@
 | 服务 | 来源 | 展示方式 |
 | --- | --- | --- |
 | Spotify、Notion、iCloud、Netflix、Vercel | [Simple Icons](https://github.com/simple-icons/simple-icons) | 矢量标志 |
+| X（原 Twitter） | [Simple Icons](https://github.com/simple-icons/simple-icons/blob/develop/icons/x.svg) | 黑色矢量标志；旧名称 Twitter 也匹配当前 X 标志 |
+| 中国移动 | [Wikimedia 收录的 China Mobile logo (2019).svg](https://en.wikipedia.org/wiki/File:China_Mobile_logo_(2019).svg) | 提取原始 SVG 的独立图形路径，去除字标，保留蓝绿品牌色；替换原 16×16 favicon |
+| 中国电信 | [Wikimedia 收录的 China Telecom Logo.svg](https://en.wikipedia.org/wiki/File:China_Telecom_Logo.svg)；[官网标志](https://www.chinatelecom-h.com/en/images/global/logo.png)核对图形 | 提取原始 SVG 的独立图形路径，去除字标，保留蓝色；替换原 16×16 favicon |
+| 中国联通 | [Wikimedia 收录的 China Unicom logo (2022).svg](https://en.wikipedia.org/wiki/File:China_Unicom_logo_(2022).svg) | 提取独立中国结矢量路径，保留原红色，去除字标 |
+| 中国广电 | [Wikimedia 收录的 CBN CHINA.png](https://zh.wikipedia.org/wiki/File:CBN_CHINA.png)；[集团官网标志](https://www.cbn.cn/picture/0/2206061234525888751.png)核对图形 | 原始 516×170 透明 PNG 嵌入 SVG，通过 170×170 视口显示独立蓝色图形；内部仍为位图，足以覆盖当前 24px 图标的高像素密度显示 |
 | 哔哩哔哩、网易云音乐、微信读书 | [Simple Icons](https://github.com/simple-icons/simple-icons) | 矢量标志 |
 | Claude、Gemini、Perplexity、Cursor、DeepSeek、Kimi、通义千问、GitHub Copilot、Suno、MiniMax、Mistral | [Simple Icons](https://github.com/simple-icons/simple-icons) | 矢量标志 |
 | 腾讯视频 | [官网 favicon](https://v.qq.com/favicon.ico) | 独立标志 |
