@@ -222,8 +222,12 @@ export default function Home() {
       date,
     );
   const planLabel = (s: Subscription) =>
-    !s.plan || ['月度订阅', '年度订阅'].includes(s.plan)
-      ? t(s.cycle === 'monthly' ? '月度订阅' : '年度订阅')
+    !s.plan || ['月度订阅', '季度订阅', '年度订阅'].includes(s.plan)
+      ? t(
+          { monthly: '月度订阅', quarterly: '季度订阅', yearly: '年度订阅' }[
+            s.cycle
+          ],
+        )
       : s.id.startsWith('sample-')
         ? t(s.plan)
         : s.plan;
@@ -622,7 +626,7 @@ export default function Home() {
                     ? rateStatus === 'loading'
                       ? t('正在获取汇率…')
                       : t('汇率暂不可用，原币金额仍完整保留。')
-                    : t('年付订阅已折算为月均费用')}
+                    : t('季付、年付订阅已折算为月均费用')}
                 </p>
                 <div className="spend-bottom">
                   <div className="stacked-logos">
@@ -840,7 +844,12 @@ export default function Home() {
                       <div className="card-price">
                         <strong>{money(s.amount, s.currency)}</strong>
                         <span>
-                          / {s.cycle === 'monthly' ? t('月') : t('年')}
+                          /{' '}
+                          {t(
+                            { monthly: '月', quarterly: '季', yearly: '年' }[
+                              s.cycle
+                            ],
+                          )}
                         </span>
                         <span
                           className="category-label"
@@ -1192,6 +1201,7 @@ export default function Home() {
                   }
                   options={[
                     { value: 'monthly', label: t('每月') },
+                    { value: 'quarterly', label: t('每季（每三个月）') },
                     { value: 'yearly', label: t('每年') },
                   ]}
                 />

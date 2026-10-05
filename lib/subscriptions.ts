@@ -10,14 +10,20 @@ export type Subscription = {
   plan: string;
   amount: number;
   currency: CurrencyCode;
-  cycle: 'monthly' | 'yearly';
+  cycle: 'monthly' | 'quarterly' | 'yearly';
   date: string;
   category: string;
   brand: string;
   active: boolean;
   notes: string;
 };
-export const categories = ['影音娱乐', '效率工具', 'AI 助手', '云端存储', '生活支出'];
+export const categories = [
+  '影音娱乐',
+  '效率工具',
+  'AI 助手',
+  '云端存储',
+  '生活支出',
+];
 const serviceBrands: Record<string, string> = {
   spotify: 'spotify',
   notion: 'notion',
@@ -189,26 +195,28 @@ export function dateString(d: Date) {
 export function parseDate(s: string) {
   return new Date(s + 'T00:00:00');
 }
+const cycleMonths = { monthly: 1, quarterly: 3, yearly: 12 };
 export function monthlyAmount(s: Subscription) {
-  return s.amount / (s.cycle === 'yearly' ? 12 : 1);
+  return s.amount / cycleMonths[s.cycle];
 }
 export function nextRenewal(s: Subscription, today: Date): Date {
   const anchor = parseDate(s.date);
   const cutoff = parseDate(dateString(today));
   if (anchor >= cutoff) return anchor;
-  const yearStep = s.cycle === 'yearly';
-  let offset = yearStep
-    ? Math.max(0, cutoff.getFullYear() - anchor.getFullYear())
-    : Math.max(
-        0,
-        (cutoff.getFullYear() - anchor.getFullYear()) * 12 +
-          cutoff.getMonth() -
-          anchor.getMonth(),
-      );
+  const monthStep = cycleMonths[s.cycle];
+  let offset = Math.max(
+    0,
+    Math.floor(
+      ((cutoff.getFullYear() - anchor.getFullYear()) * 12 +
+        cutoff.getMonth() -
+        anchor.getMonth()) /
+        monthStep,
+    ),
+  );
   const occurrence = (n: number) => {
     const target = new Date(
-      anchor.getFullYear() + (yearStep ? n : 0),
-      anchor.getMonth() + (yearStep ? 0 : n),
+      anchor.getFullYear(),
+      anchor.getMonth() + n * monthStep,
       1,
     );
     const last = new Date(
@@ -247,7 +255,7 @@ export function isSubscription(value: unknown): value is Subscription {
     s.amount > 0 &&
     s.amount <= 10000000 &&
     isCurrencyCode(s.currency) &&
-    ['monthly', 'yearly'].includes(s.cycle) &&
+    ['monthly', 'quarterly', 'yearly'].includes(s.cycle) &&
     categories.includes(s.category) &&
     typeof s.date === 'string' &&
     /^\d{4}-\d{2}-\d{2}$/.test(s.date) &&

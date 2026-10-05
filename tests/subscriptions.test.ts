@@ -92,6 +92,39 @@ void test('monthly renewals clamp to month end and preserve the original billing
   assert.equal(dateString(nextRenewal(s, new Date(2026, 1, 1))), '2026-02-28');
   assert.equal(dateString(nextRenewal(s, new Date(2026, 2, 1))), '2026-03-31');
 });
+void test('quarterly subscriptions normalize prices and survive storage validation', () => {
+  const s = { ...base, amount: 90, cycle: 'quarterly' as const };
+  assert.equal(monthlyAmount(s), 30);
+  assert.equal(isSubscription(s), true);
+  assert.deepEqual(normalizeSubscription(JSON.parse(JSON.stringify(s))), s);
+});
+void test('quarterly renewals follow the anchor every three months across year boundaries', () => {
+  const s = { ...base, date: '2026-12-04', cycle: 'quarterly' as const };
+  for (const [today, expected] of [
+    ['2026-10-05', '2026-12-04'],
+    ['2026-12-04', '2026-12-04'],
+    ['2026-12-05', '2027-03-04'],
+    ['2027-01-01', '2027-03-04'],
+    ['2027-03-05', '2027-06-04'],
+    ['2028-01-01', '2028-03-04'],
+  ]) {
+    assert.equal(
+      dateString(nextRenewal(s, new Date(today + 'T00:00:00'))),
+      expected,
+    );
+  }
+});
+void test('quarterly renewals clamp short months without losing the original billing day', () => {
+  const s = { ...base, date: '2026-08-31', cycle: 'quarterly' as const };
+  assert.equal(dateString(nextRenewal(s, new Date(2026, 10, 1))), '2026-11-30');
+  assert.equal(
+    dateString(nextRenewal(s, new Date(2026, 10, 30))),
+    '2026-11-30',
+  );
+  assert.equal(dateString(nextRenewal(s, new Date(2026, 11, 1))), '2027-02-28');
+  assert.equal(dateString(nextRenewal(s, new Date(2027, 2, 1))), '2027-05-31');
+  assert.equal(dateString(nextRenewal(s, new Date(2028, 1, 1))), '2028-02-29');
+});
 void test('annual leap-day renewal clamps correctly and returns to leap day', () => {
   const s = { ...base, date: '2024-02-29', cycle: 'yearly' as const };
   assert.equal(dateString(nextRenewal(s, new Date(2025, 0, 1))), '2025-02-28');
