@@ -312,6 +312,7 @@ export function sampleSubscriptions(today: Date): Subscription[] {
     ['Apple iCloud+', '200 GB', 21, 'monthly', 12, '云端存储', 'apple'],
     ['Netflix', '标准套餐', 78, 'monthly', 15, '影音娱乐', 'netflix'],
     ['Vercel', 'Pro', 1440, 'yearly', 20, '效率工具', 'vercel'],
+    ['房租', '整租', 2300, 'monthly', 17, '生活支出', 'custom'],
   ];
   const ago = (months: number, days = 0) =>
     dateString(
@@ -330,6 +331,7 @@ export function sampleSubscriptions(today: Date): Subscription[] {
     },
     3: { startDate: ago(14) },
     5: { startDate: ago(11, -20) },
+    6: { startDate: ago(6) },
   };
   return rows.map(([name, plan, amount, cycle, days, category, brand], i) => {
     const next = new Date(today);

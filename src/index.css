@@ -3135,6 +3135,8 @@ footer button {
 }
 .spend-amount strong {
   display: block;
+  letter-spacing: normal;
+  font-variant-numeric: tabular-nums;
   font-size: 14px;
   font-weight: 600;
 }
