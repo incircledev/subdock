@@ -3183,7 +3183,10 @@ footer button {
 .day-detail {
   position: fixed;
   z-index: 41;
+  box-sizing: border-box;
   width: 320px;
+  min-width: 320px;
+  max-width: 320px;
   padding: 16px;
   border-radius: 14px;
   background: #fff;
@@ -3235,8 +3238,10 @@ footer button {
     left: 0 !important;
     right: 0;
     top: auto !important;
-    bottom: 0;
+    bottom: 0 !important;
     width: 100%;
+    min-width: 0;
+    max-width: none;
     border-radius: 18px 18px 0 0;
     padding-bottom: 28px;
   }

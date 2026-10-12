@@ -255,7 +255,8 @@ export default function Home() {
   const [dayDetail, setDayDetail] = useState<{
     day: number;
     left: number;
-    top: number;
+    top?: number;
+    bottom?: number;
   } | null>(null);
   const [priceDraft, setPriceDraft] = useState<{
     amount: string;
@@ -1116,13 +1117,19 @@ export default function Home() {
                           onClick={(e) => {
                             if (!charges.length) return;
                             const r = e.currentTarget.getBoundingClientRect();
+                            const below =
+                              window.innerHeight - r.bottom >=
+                              120 + charges.length * 44;
                             setDayDetail({
                               day,
-                              left: Math.min(
-                                Math.max(8, r.left),
-                                window.innerWidth - 328,
+                              left: Math.max(
+                                8,
+                                Math.min(r.left, window.innerWidth - 328),
                               ),
-                              top: r.bottom + 6,
+                              top: below ? r.bottom + 6 : undefined,
+                              bottom: below
+                                ? undefined
+                                : window.innerHeight - r.top + 6,
                             });
                           }}
                         >
@@ -1184,7 +1191,11 @@ export default function Home() {
                   <section
                     className="day-detail"
                     aria-live="polite"
-                    style={{ left: dayDetail.left, top: dayDetail.top }}
+                    style={{
+                      left: dayDetail.left,
+                      top: dayDetail.top,
+                      bottom: dayDetail.bottom,
+                    }}
                   >
                     <h3>
                       {new Intl.DateTimeFormat(locale, {
