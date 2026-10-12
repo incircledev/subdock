@@ -81,6 +81,9 @@ import {
   isSubscription,
   normalizeSubscription,
   sampleSubscriptions,
+  chargesBetween,
+  parseDate,
+  type Charge,
   type Subscription,
 } from '@/lib/subscriptions';
 import {
@@ -248,6 +251,16 @@ export default function Home() {
   const [view, setView] = useState('grid');
   const [status, setStatus] = useState('active');
   const [monthOffset, setMonthOffset] = useState(0);
+  const [calendarMode, setCalendarMode] = useState<'renew' | 'spend'>('renew');
+  const [dayDetail, setDayDetail] = useState<{
+    day: number;
+    left: number;
+    top: number;
+  } | null>(null);
+  const [priceDraft, setPriceDraft] = useState<{
+    amount: string;
+    date: string;
+  } | null>(null);
   const [editing, setEditing] = useState<Subscription | null>(null);
   const [open, setOpen] = useState(false);
   const [help, setHelp] = useState(false);
@@ -271,6 +284,8 @@ export default function Home() {
     currency: displayCurrency,
     cycle: 'monthly',
     date: dateString(today),
+    startDate: dateString(today),
+    priceChanges: [],
     category: '效率工具',
     brand: 'custom',
     active: true,
@@ -498,7 +513,51 @@ export default function Home() {
   const monthEventTotal = monthEventAmounts.every((amount) => amount !== null)
     ? monthEventAmounts.reduce<number>((sum, amount) => sum + (amount || 0), 0)
     : null;
+  const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+  const todayKey = dateString(today);
+  const monthCharges: (Charge & { converted: number })[] = active.flatMap(
+    (s) =>
+      chargesBetween(s, month, monthEnd, today).map((c) => ({
+        ...c,
+        converted: convertedAmount(s, c.amount) ?? 0,
+      })),
+  );
+  const chargesOn = (day: number) =>
+    monthCharges.filter((c) => c.date.getDate() === day);
+  const spentTotal = monthCharges
+    .filter((c) => dateString(c.date) <= todayKey)
+    .reduce((sum, c) => sum + c.converted, 0);
+  const forecastTotal = monthCharges
+    .filter((c) => dateString(c.date) > todayKey)
+    .reduce((sum, c) => sum + c.converted, 0);
+  const wholeMoney = (n: number) =>
+    new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: displayCurrency,
+      currencyDisplay: 'symbol',
+      maximumFractionDigits: 0,
+    }).format(n);
+  const spendTier = (n: number) =>
+    n < 1 ? 0 : n < 50 ? 1 : n < 200 ? 2 : n < 1000 ? 3 : 4;
+  const recordPriceChange = () => {
+    if (!priceDraft) return;
+    const amount = Number(priceDraft.amount);
+    if (!(amount > 0) || !priceDraft.date) return;
+    const change = { date: priceDraft.date, amount, previous: draft.amount };
+    const priceChanges = [...(draft.priceChanges || []), change];
+    const current = priceChanges
+      .filter((c) => c.date <= todayKey)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .pop();
+    setDraft({
+      ...draft,
+      priceChanges,
+      amount: current ? current.amount : draft.amount,
+    });
+    setPriceDraft(null);
+  };
   const startEdit = (s?: Subscription) => {
+    setPriceDraft(null);
     setEditing(s || null);
     setDraft(s ? { ...s } : blank());
     setOpen(true);
@@ -511,6 +570,7 @@ export default function Home() {
       name: draft.name.trim(),
       plan: draft.plan.trim(),
     };
+    if (!s.startDate) delete s.startDate;
     if (!isSubscription(s)) {
       setNotice(t('请填写有效的名称、金额和续费日期。'));
       return;
@@ -953,26 +1013,59 @@ export default function Home() {
                     }).format(month)}
                   </h2>
                   <p>
-                    {t('{count} 笔续费 · 合计 {amount}', {
+                    {calendarMode === 'spend'
+                      ? monthCharges.length === 0
+                        ? t('本月暂无支出')
+                        : t('本月已支出 {spent} · 剩余预计 {forecast}', {
+                            spent: money(spentTotal, displayCurrency),
+                            forecast: money(forecastTotal, displayCurrency),
+                          })
+                      : t('{count} 笔续费 · 合计 {amount}', {
                       count: monthEvents.length,
                       amount:
                         monthEventTotal === null
                           ? '—'
                           : money(monthEventTotal, displayCurrency),
-                    })}
+                        })}
                   </p>
                 </div>
                 <div className="calendar-controls">
+                  <div
+                    className="calendar-mode"
+                    role="tablist"
+                    aria-label={t('日历视图')}
+                  >
+                    {(['renew', 'spend'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        role="tab"
+                        aria-selected={calendarMode === mode}
+                        className={calendarMode === mode ? 'selected' : ''}
+                        onClick={() => {
+                          setCalendarMode(mode);
+                          setDayDetail(null);
+                        }}
+                      >
+                        {mode === 'renew' ? t('续费') : t('支出')}
+                      </button>
+                    ))}
+                  </div>
                   <button
                     aria-label={t('上个月')}
-                    onClick={() => setMonthOffset((n) => n - 1)}
+                    onClick={() => {
+                      setDayDetail(null);
+                      setMonthOffset((n) => n - 1);
+                    }}
                   >
                     <ChevronLeft size={18} />
                   </button>
                   <button onClick={() => setMonthOffset(0)}>{t('本月')}</button>
                   <button
                     aria-label={t('下个月')}
-                    onClick={() => setMonthOffset((n) => n + 1)}
+                    onClick={() => {
+                      setDayDetail(null);
+                      setMonthOffset((n) => n + 1);
+                    }}
                   >
                     <ChevronRight size={18} />
                   </button>
@@ -1001,6 +1094,52 @@ export default function Home() {
                   },
                   (_, i) => {
                     const day = i + 1;
+                    if (calendarMode === 'spend') {
+                      const key = dateString(
+                        new Date(month.getFullYear(), month.getMonth(), day),
+                      );
+                      const charges = chargesOn(day);
+                      const sum = charges.reduce((n, c) => n + c.converted, 0);
+                      const when =
+                        key < todayKey
+                          ? 'past'
+                          : key === todayKey
+                            ? 'today'
+                            : 'future';
+                      const tier = when === 'past' ? spendTier(sum) : 0;
+                      return (
+                        <button
+                          type="button"
+                          disabled={!charges.length}
+                          className={`calendar-cell spend-cell ${when} tier-${tier} ${charges.length ? 'has-amount' : ''}`}
+                          key={day}
+                          onClick={(e) => {
+                            if (!charges.length) return;
+                            const r = e.currentTarget.getBoundingClientRect();
+                            setDayDetail({
+                              day,
+                              left: Math.min(
+                                Math.max(8, r.left),
+                                window.innerWidth - 328,
+                              ),
+                              top: r.bottom + 6,
+                            });
+                          }}
+                        >
+                          <span className="day-number">{day}</span>
+                          {charges.length > 0 && (
+                            <span className="spend-amount">
+                              <strong>{wholeMoney(sum)}</strong>
+                              {charges.length > 1 && (
+                                <small>
+                                  {t('{count} 笔', { count: charges.length })}
+                                </small>
+                              )}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    }
                     const events = monthEvents.filter(
                       (s) => s.next.getDate() === day,
                     );
@@ -1030,8 +1169,65 @@ export default function Home() {
                 )}
               </div>
               <p className="calendar-caption">
-                {t('根据当前订阅的续费周期推算，不代表已实际扣款。')}
+                {calendarMode === 'spend'
+                  ? t('过去的支出按续费周期、开始日期与调价记录推算。')
+                  : t('根据当前订阅的续费周期推算，不代表已实际扣款。')}
               </p>
+              {dayDetail && calendarMode === 'spend' && (
+                <>
+                  <button
+                    type="button"
+                    className="day-detail-backdrop"
+                    aria-label={t('关闭')}
+                    onClick={() => setDayDetail(null)}
+                  />
+                  <section
+                    className="day-detail"
+                    aria-live="polite"
+                    style={{ left: dayDetail.left, top: dayDetail.top }}
+                  >
+                    <h3>
+                      {new Intl.DateTimeFormat(locale, {
+                        month: 'long',
+                        day: 'numeric',
+                        weekday: 'short',
+                      }).format(
+                        new Date(
+                          month.getFullYear(),
+                          month.getMonth(),
+                          dayDetail.day,
+                        ),
+                      )}
+                    </h3>
+                    <ul>
+                      {chargesOn(dayDetail.day).map((c) => (
+                        <li key={c.sub.id}>
+                          <Logo brand={c.sub.brand} name={c.sub.name} small />
+                          <span className="detail-name">{c.sub.name}</span>
+                          <span className="detail-amount">
+                            {money(c.amount, c.sub.currency)}
+                            {c.sub.currency !== displayCurrency && (
+                              <small>{money(c.converted, displayCurrency)}</small>
+                            )}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="detail-total">
+                      <span>{t('当日合计')}</span>
+                      <strong>
+                        {money(
+                          chargesOn(dayDetail.day).reduce(
+                            (n, c) => n + c.converted,
+                            0,
+                          ),
+                          displayCurrency,
+                        )}
+                      </strong>
+                    </div>
+                  </section>
+                </>
+              )}
             </section>
           </TabsContent>
           <TabsContent value="insights">
@@ -1180,6 +1376,18 @@ export default function Home() {
                     setDraft({ ...draft, amount: Number(e.target.value) })
                   }
                 />
+                <button
+                  type="button"
+                  className="price-change-link"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setPriceDraft(
+                      priceDraft ? null : { amount: '', date: todayKey },
+                    );
+                  }}
+                >
+                  {t('+ 记录调价')}
+                </button>
               </label>
               <div className="form-field">
                 <span>{t('货币')}</span>
@@ -1196,6 +1404,69 @@ export default function Home() {
                 />
               </div>
             </div>
+            {(priceDraft || (draft.priceChanges || []).length > 0) && (
+              <div className="price-changes">
+                {priceDraft && (
+                  <div className="price-change-editor">
+                    <label>
+                      {t('新价格')}
+                      <input
+                        type="number"
+                        min="0.01"
+                        max="10000000"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={priceDraft.amount}
+                        onChange={(e) =>
+                          setPriceDraft({ ...priceDraft, amount: e.target.value })
+                        }
+                      />
+                    </label>
+                    <label>
+                      {t('生效日期')}
+                      <input
+                        type="date"
+                        min="2000-01-01"
+                        max="2100-12-31"
+                        value={priceDraft.date}
+                        onChange={(e) =>
+                          setPriceDraft({ ...priceDraft, date: e.target.value })
+                        }
+                      />
+                    </label>
+                    <button type="button" onClick={recordPriceChange}>
+                      {t('记录')}
+                    </button>
+                  </div>
+                )}
+                {[...(draft.priceChanges || [])]
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                  .map((c) => (
+                    <div className="price-change-row" key={`${c.date}-${c.amount}`}>
+                      <span>{shortDate(parseDate(c.date))}</span>
+                      <span>
+                        {c.previous !== undefined &&
+                          `${money(c.previous, draft.currency)} → `}
+                        {money(c.amount, draft.currency)}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={t('删除')}
+                        onClick={() =>
+                          setDraft({
+                            ...draft,
+                            priceChanges: (draft.priceChanges || []).filter(
+                              (x) => x !== c,
+                            ),
+                          })
+                        }
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            )}
             <div className="form-columns">
               <div className="form-field">
                 <span>{t('付款周期')}</span>
@@ -1224,6 +1495,22 @@ export default function Home() {
                 />
               </label>
             </div>
+            <label>
+              {t('开始日期')}
+              <span className="optional">{t('选填')}</span>
+              <input
+                type="date"
+                min="2000-01-01"
+                max="2100-12-31"
+                value={draft.startDate || ''}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    startDate: e.target.value || undefined,
+                  })
+                }
+              />
+            </label>
             <div className="form-field">
               <span>{t('分类')}</span>
               <Picker

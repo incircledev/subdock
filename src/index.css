@@ -3083,3 +3083,226 @@ footer button {
     padding: 10px;
   }
 }
+
+/* Spend calendar */
+.calendar-mode {
+  display: inline-flex;
+  height: 32px;
+  padding: 2px;
+  margin-right: 6px;
+  border-radius: 8px;
+  border: 1px solid
+    hsl(
+      calc(84deg + var(--surface-shift)) calc(24.59% * var(--surface-chroma))
+        88.04% / 1
+    );
+  background: hsl(
+    calc(82.5deg + var(--surface-shift)) calc(26.67% * var(--surface-chroma))
+      94.12% / 1
+  );
+}
+.calendar-controls .calendar-mode button {
+  min-height: 0;
+  height: 26px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 13px;
+}
+.calendar-controls .calendar-mode button.selected {
+  background: hsl(
+    calc(115.71deg + var(--ink-shift)) calc(14.89% * var(--ink-chroma)) 18.43% /
+      1
+  );
+  color: #fff;
+}
+.spend-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.spend-cell.has-amount {
+  cursor: pointer;
+}
+.spend-cell.future {
+  opacity: 0.4;
+}
+.spend-amount {
+  align-self: flex-end;
+  text-align: right;
+  line-height: 1.25;
+}
+.spend-amount strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+.spend-amount small {
+  display: block;
+  font-size: 11px;
+  color: hsl(
+    calc(88.57deg + var(--accent-shift)) calc(9.59% * var(--accent-chroma))
+      57.06% / 1
+  );
+}
+.calendar-grid .spend-cell.tier-1 {
+  background: hsl(
+    calc(87.27deg + var(--surface-shift)) calc(29.73% * var(--surface-chroma))
+      92.75% / 1
+  );
+}
+.calendar-grid .spend-cell.tier-2 {
+  background: hsl(
+    calc(90deg + var(--surface-shift)) calc(30% * var(--surface-chroma)) 84% / 1
+  );
+}
+.calendar-grid .spend-cell.tier-3 {
+  background: hsl(
+    calc(95deg + var(--surface-shift)) calc(26% * var(--surface-chroma)) 70% / 1
+  );
+}
+.calendar-grid .spend-cell.tier-4 {
+  background: hsl(
+    calc(115.71deg + var(--ink-shift)) calc(14.89% * var(--ink-chroma)) 18.43% /
+      1
+  );
+  color: #fff;
+}
+.calendar-grid .spend-cell.tier-4 .day-number,
+.calendar-grid .spend-cell.tier-4 .spend-amount small {
+  color: #ffffffcc;
+}
+.day-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+.day-detail {
+  position: fixed;
+  z-index: 41;
+  width: 320px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid
+    hsl(
+      calc(84deg + var(--surface-shift)) calc(24.59% * var(--surface-chroma))
+        88.04% / 1
+    );
+  box-shadow: 0 12px 32px #1f281a26;
+}
+.day-detail h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.day-detail li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  font-size: 13px;
+}
+.day-detail .service-logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+}
+.detail-name {
+  flex: 1;
+}
+.detail-amount {
+  text-align: right;
+}
+.detail-amount small {
+  display: block;
+  font-size: 11px;
+  color: #8a9180;
+}
+.detail-total {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #e5e8dc;
+  margin-top: 6px;
+  padding-top: 10px;
+  font-size: 13px;
+}
+@media (max-width: 640px) {
+  .day-detail {
+    left: 0 !important;
+    right: 0;
+    top: auto !important;
+    bottom: 0;
+    width: 100%;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: 28px;
+  }
+  .day-detail-backdrop {
+    background: #0003;
+  }
+  .calendar-mode {
+    margin-right: 0;
+  }
+}
+.price-change-link {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: hsl(
+    calc(108deg + var(--ink-shift)) calc(20.66% * var(--ink-chroma)) 33% / 1
+  );
+  text-decoration: underline;
+  cursor: pointer;
+}
+.price-changes {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: hsl(
+    calc(82.5deg + var(--surface-shift)) calc(26.67% * var(--surface-chroma))
+      95% / 1
+  );
+}
+.price-change-editor {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+}
+.price-change-editor button,
+.price-change-row button {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #d8dccb;
+  background: #fff;
+  font-size: 13px;
+}
+.price-change-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+.price-change-row button {
+  height: 28px;
+  padding: 0 8px;
+}
+button.spend-cell:not(.today) {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  border-top: none;
+  border-left: none;
+  border-radius: 0;
+  background-color: transparent;
+}
+button.spend-cell:disabled {
+  cursor: default;
+}
