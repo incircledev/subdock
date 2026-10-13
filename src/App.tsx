@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type SubmitEvent,
@@ -97,10 +96,16 @@ import {
   type CurrencyCode,
   type ExchangeRates,
 } from '@/lib/currencies';
+import {
+  buildFootprint,
+  type Convert,
+  type FootprintNode,
+} from '@/lib/footprint';
 const STORAGE = 'subdock.subscriptions.v1';
 const DEMO_STORAGE = 'subdock.demoMode.v1';
 const CURRENCY_STORAGE = 'subdock.displayCurrency.v1';
 const RATE_STORAGE = 'subdock.exchangeRates.v1';
+const FIRST_USE_STORAGE = 'subdock.firstUse.v1';
 const RATE_MAX_AGE = 24 * 60 * 60 * 1000;
 const colors: Record<string, string> = {
   影音娱乐: '#8acda8',
@@ -250,6 +255,7 @@ export default function Home() {
   const [view, setView] = useState('grid');
   const [status, setStatus] = useState('active');
   const [monthOffset, setMonthOffset] = useState(0);
+  const [firstUse, setFirstUse] = useState('');
   const [priceDraft, setPriceDraft] = useState<{
     amount: string;
     date: string;
@@ -296,6 +302,13 @@ export default function Home() {
       if (import.meta.env.DEV)
         storedDemoMode = localStorage.getItem(DEMO_STORAGE) === 'true';
       setDemoMode(storedDemoMode);
+      const storedFirstUse = localStorage.getItem(FIRST_USE_STORAGE);
+      if (storedFirstUse && /^\d{4}-\d{2}-\d{2}$/.test(storedFirstUse))
+        setFirstUse(storedFirstUse);
+      else {
+        setFirstUse(dateString(now));
+        localStorage.setItem(FIRST_USE_STORAGE, dateString(now));
+      }
       const storedCurrency = localStorage.getItem(CURRENCY_STORAGE);
       if (isCurrencyCode(storedCurrency)) setDisplayCurrency(storedCurrency);
       const saved = localStorage.getItem(STORAGE);
@@ -444,14 +457,10 @@ export default function Home() {
     ? totalParts.reduce<number>((sum, amount) => sum + (amount || 0), 0)
     : null;
   const totalValue = total || 0;
-  const upcoming = useMemo(
-    () =>
-      liveItems
-        .filter((s) => s.active)
-        .map((s) => ({ ...s, next: nextRenewal(s, today) }))
-        .sort((a, b) => a.next.getTime() - b.next.getTime()),
-    [liveItems, today],
-  );
+  const upcoming = liveItems
+    .filter((s) => s.active)
+    .map((s) => ({ ...s, next: nextRenewal(s, today) }))
+    .sort((a, b) => a.next.getTime() - b.next.getTime());
   const nextWeek = upcoming.filter((s) => daysUntil(s.next, today) <= 7);
   const filtered = liveItems
     .filter(
@@ -1064,6 +1073,13 @@ export default function Home() {
             </section>
           </TabsContent>
           <TabsContent value="insights">
+            <FootprintPanel
+              subs={items}
+              today={today}
+              firstUse={firstUse || todayKey}
+              convert={(sub, amount) => convertedAmount(sub, amount) ?? 0}
+              currency={displayCurrency}
+            />
             <section className="insights-surface">
               <div className="insight-title">
                 <span className="eyebrow">{t('THE BIGGER PICTURE')}</span>
@@ -1251,7 +1267,10 @@ export default function Home() {
                         placeholder="0.00"
                         value={priceDraft.amount}
                         onChange={(e) =>
-                          setPriceDraft({ ...priceDraft, amount: e.target.value })
+                          setPriceDraft({
+                            ...priceDraft,
+                            amount: e.target.value,
+                          })
                         }
                       />
                     </label>
@@ -1275,7 +1294,10 @@ export default function Home() {
                 {[...(draft.priceChanges || [])]
                   .sort((a, b) => b.date.localeCompare(a.date))
                   .map((c) => (
-                    <div className="price-change-row" key={`${c.date}-${c.amount}`}>
+                    <div
+                      className="price-change-row"
+                      key={`${c.date}-${c.amount}`}
+                    >
                       <span>{shortDate(parseDate(c.date))}</span>
                       <span>
                         {c.previous !== undefined &&
@@ -1513,5 +1535,248 @@ export default function Home() {
         )}
       </output>
     </div>
+  );
+}
+
+type FootprintRange = '3m' | '1y' | 'all';
+function FootprintPanel({
+  subs,
+  today,
+  firstUse,
+  convert,
+  currency,
+}: {
+  subs: Subscription[];
+  today: Date;
+  firstUse: string;
+  convert: Convert;
+  currency: CurrencyCode;
+}) {
+  const { t, locale } = useI18n();
+  const [range, setRange] = useState<FootprintRange>('1y');
+  const [selected, setSelected] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const chartRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = chartRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() =>
+      setSize({ width: el.clientWidth, height: el.clientHeight }),
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [subs.length]);
+  const fp = buildFootprint(subs, today, firstUse, convert);
+  const money = (n: number) => formatCurrency(locale, n, currency);
+  const day = (key: string) =>
+    new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(
+      parseDate(key),
+    );
+  const fullDay = (key: string) =>
+    new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).format(parseDate(key));
+  const label = (n: FootprintNode) =>
+    n.kind === 'origin'
+      ? t('开始记录')
+      : n.kind === 'add'
+        ? `+${n.sub?.name}`
+        : n.kind === 'cancel'
+          ? `−${n.sub?.name}`
+          : t('{name} 调价', { name: n.sub?.name || '' });
+  const tip = (n: FootprintNode) =>
+    n.kind === 'origin'
+      ? `${t('开始记录')} · ${t('每天 {amount}', { amount: money(n.after) })}`
+      : `${day(n.date)} ${label(n)} ${money(n.before)} → ${money(n.after)}`;
+  if (!fp.nodes.length)
+    return (
+      <section className="footprint">
+        <h2 className="footprint-title">{t('订阅足迹')}</h2>
+        <p className="footprint-empty">
+          {t('还没有足迹，添加第一个订阅后这里会开始记录。')}
+        </p>
+      </section>
+    );
+  const todayKey = dateString(today);
+  const first = fp.nodes[0].date;
+  const shift = (months: number) =>
+    dateString(
+      new Date(today.getFullYear(), today.getMonth() - months, today.getDate()),
+    );
+  const rangeStart =
+    range === '3m' ? shift(3) : range === '1y' ? shift(12) : first;
+  const t0 = parseDate(rangeStart).getTime();
+  const t1 = Math.max(parseDate(todayKey).getTime(), t0 + 86400000);
+  const pad = { l: 10, r: 10, t: 18, b: 26 };
+  const w = Math.max(0, size.width - pad.l - pad.r);
+  const h = Math.max(0, size.height - pad.t - pad.b);
+  const max =
+    Math.max(...fp.nodes.map((n) => Math.max(n.before, n.after)), 1) * 1.15;
+  const x = (key: string) =>
+    pad.l + ((parseDate(key).getTime() - t0) / (t1 - t0)) * w;
+  const y = (v: number) => pad.t + h - (v / max) * h;
+  const startKey = first > rangeStart ? first : rangeStart;
+  let line = `M${x(startKey)},${y(fp.at(startKey))}`;
+  for (const n of fp.nodes)
+    if (n.date > startKey) line += ` H${x(n.date)} V${y(n.after)}`;
+  line += ` H${x(todayKey)}`;
+  const fill = `${line} V${pad.t + h} H${x(startKey)} Z`;
+  const visible = fp.nodes.filter((n) => n.date >= rangeStart);
+  const active = fp.nodes.find((n) => n.id === selected);
+  const diff = fp.today - fp.yearStart;
+  const events = fp.nodes.filter((n) => n.kind !== 'origin').reverse();
+  const origin = fp.nodes.find((n) => n.kind === 'origin');
+  return (
+    <section className="footprint">
+      <div className="footprint-head">
+        <div>
+          <h2 className="footprint-title">{t('订阅足迹')}</h2>
+          <strong className="footprint-daily">
+            {t('每天 {amount}', { amount: money(fp.today) })}
+          </strong>
+          <p className="footprint-diff">
+            {Math.abs(diff) < 0.005
+              ? t('与年初持平')
+              : diff > 0
+                ? t('比年初多 {amount} / 天', { amount: money(diff) })
+                : t('比年初少 {amount} / 天', { amount: money(-diff) })}
+          </p>
+        </div>
+        <div className="footprint-range" role="tablist">
+          {(['3m', '1y', 'all'] as const).map((r) => (
+            <button
+              key={r}
+              role="tab"
+              aria-selected={range === r}
+              className={range === r ? 'selected' : ''}
+              onClick={() => setRange(r)}
+            >
+              {r === '3m'
+                ? t('近 3 月')
+                : r === '1y'
+                  ? t('近 1 年')
+                  : t('全部')}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="footprint-chart" ref={chartRef}>
+        {size.width > 0 && (
+          <svg width={size.width} height={size.height} aria-hidden="true">
+            <path d={fill} className="footprint-fill" />
+            <path d={line} className="footprint-line" />
+            <text x={pad.l} y={size.height - 6} className="footprint-axis">
+              {fullDay(rangeStart)}
+            </text>
+            <text
+              x={size.width - pad.r}
+              y={size.height - 6}
+              textAnchor="end"
+              className="footprint-axis"
+            >
+              {fullDay(todayKey)}
+            </text>
+            {[...visible]
+              .sort(
+                (a, b) =>
+                  (a.kind === 'origin' ? 1 : 0) - (b.kind === 'origin' ? 1 : 0),
+              )
+              .map((n) => (
+                <circle
+                  key={n.id}
+                  cx={x(n.date)}
+                  cy={y(n.after)}
+                  r={selected === n.id ? 5.5 : 4}
+                  className={`footprint-dot ${n.kind === 'origin' ? 'origin' : ''}`}
+                  onMouseEnter={() => setSelected(n.id)}
+                  onClick={() => setSelected(n.id)}
+                />
+              ))}
+          </svg>
+        )}
+        {active && active.date >= rangeStart && (
+          <div
+            className="footprint-tip"
+            style={{
+              left: Math.min(Math.max(x(active.date), 90), size.width - 90),
+              top: y(active.after),
+            }}
+          >
+            {tip(active)}
+          </div>
+        )}
+      </div>
+      <ul className="footprint-list">
+        {events.map((n) => (
+          <li key={n.id}>
+            <button
+              type="button"
+              className={`footprint-row ${selected === n.id ? 'selected' : ''}`}
+              onClick={() => setSelected(n.id)}
+            >
+              {n.sub && <Logo brand={n.sub.brand} name={n.sub.name} small />}
+              <span className="footprint-row-main">
+                <strong>{label(n)}</strong>
+                <small>{fullDay(n.date)}</small>
+              </span>
+              <span className="footprint-row-value">
+                {money(n.before)} → {money(n.after)} {t('/ 天')}
+              </span>
+              <span
+                className={`footprint-pill ${n.delta >= 0 ? 'up' : 'down'}`}
+              >
+                {n.delta >= 0 ? '+' : '−'}
+                {money(Math.abs(n.delta))}
+              </span>
+            </button>
+          </li>
+        ))}
+        {origin && (
+          <li className="footprint-origin">
+            <button
+              type="button"
+              className={`footprint-row ${selected === origin.id ? 'selected' : ''}`}
+              aria-expanded={expanded}
+              onClick={() => {
+                setSelected(origin.id);
+                setExpanded(!expanded);
+              }}
+            >
+              <span className="footprint-mark">
+                <Layers size={14} strokeWidth={2.4} />
+              </span>
+              <span className="footprint-row-main">
+                <strong>{t('开始记录')}</strong>
+                <small>{fullDay(origin.date)}</small>
+                <small className="footprint-count">
+                  {t('包含 {count} 个订阅', {
+                    count: origin.members?.length || 0,
+                  })}
+                </small>
+              </span>
+              <span className="footprint-row-value">
+                {t('每天 {amount}', { amount: money(origin.after) })}
+              </span>
+            </button>
+            {expanded && (
+              <ul className="footprint-members">
+                {origin.members?.map((m) => (
+                  <li key={m.sub.id}>
+                    <Logo brand={m.sub.brand} name={m.sub.name} small />
+                    <span>{m.sub.name}</span>
+                    <span>
+                      {money(m.daily)} {t('/ 天')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        )}
+      </ul>
+    </section>
   );
 }

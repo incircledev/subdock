@@ -161,5 +161,17 @@
   "记录": "Save",
   "开始日期": "Start date",
   "整租": "Whole apartment",
-  "月卡": "Monthly pass"
+  "月卡": "Monthly pass",
+  "订阅足迹": "Subscription footprint",
+  "每天 {amount}": "{amount} / day",
+  "比年初多 {amount} / 天": "{amount} / day more than Jan 1",
+  "比年初少 {amount} / 天": "{amount} / day less than Jan 1",
+  "与年初持平": "Same as Jan 1",
+  "近 3 月": "3M",
+  "近 1 年": "1Y",
+  "开始记录": "Tracking started",
+  "{name} 调价": "{name} price change",
+  "/ 天": "/ day",
+  "包含 {count} 个订阅": "Includes {count} subscriptions",
+  "还没有足迹，添加第一个订阅后这里会开始记录。": "No footprint yet. Add your first subscription to start tracking."
 }
