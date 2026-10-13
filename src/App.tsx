@@ -1619,12 +1619,44 @@ function FootprintPanel({
     pad.l + ((parseDate(key).getTime() - t0) / (t1 - t0)) * w;
   const y = (v: number) => pad.t + h - (v / max) * h;
   const startKey = first > rangeStart ? first : rangeStart;
-  let line = `M${x(startKey)},${y(fp.at(startKey))}`;
-  for (const n of fp.nodes)
-    if (n.date > startKey) line += ` H${x(n.date)} V${y(n.after)}`;
+  const fromOrigin = startKey === first;
+  let line = `M${x(startKey)},${y(fromOrigin ? fp.nodes[0].after : fp.at(startKey))}`;
+  fp.nodes.forEach((n, i) => {
+    if (fromOrigin ? i > 0 : n.date > startKey)
+      line += ` H${x(n.date)} V${y(n.after)}`;
+  });
   line += ` H${x(todayKey)}`;
   const fill = `${line} V${pad.t + h} H${x(startKey)} Z`;
   const visible = fp.nodes.filter((n) => n.date >= rangeStart);
+  // Keep the earlier dot in place and nudge a crowded neighbour 6px right.
+  const dotX: Record<string, number> = {};
+  let prevX = -Infinity;
+  for (const n of visible) {
+    let cx = x(n.date);
+    if (cx - prevX < 8) cx += 6;
+    dotX[n.id] = cx;
+    prevX = cx;
+  }
+  const ticks: { key: string; label: string }[] = [];
+  const spanMonths =
+    (parseDate(todayKey).getFullYear() - parseDate(rangeStart).getFullYear()) *
+      12 +
+    parseDate(todayKey).getMonth() -
+    parseDate(rangeStart).getMonth();
+  for (
+    let m = new Date(
+      parseDate(rangeStart).getFullYear(),
+      parseDate(rangeStart).getMonth() + 1,
+      1,
+    );
+    dateString(m) <= todayKey;
+    m = new Date(m.getFullYear(), m.getMonth() + 1, 1)
+  )
+    if (spanMonths < 6 || m.getMonth() % 3 === 0)
+      ticks.push({
+        key: dateString(m),
+        label: new Intl.DateTimeFormat(locale, { month: 'short' }).format(m),
+      });
   const active = fp.nodes.find((n) => n.id === selected);
   const diff = fp.today - fp.yearStart;
   const events = fp.nodes.filter((n) => n.kind !== 'origin').reverse();
@@ -1668,17 +1700,17 @@ function FootprintPanel({
           <svg width={size.width} height={size.height} aria-hidden="true">
             <path d={fill} className="footprint-fill" />
             <path d={line} className="footprint-line" />
-            <text x={pad.l} y={size.height - 6} className="footprint-axis">
-              {fullDay(rangeStart)}
-            </text>
-            <text
-              x={size.width - pad.r}
-              y={size.height - 6}
-              textAnchor="end"
-              className="footprint-axis"
-            >
-              {fullDay(todayKey)}
-            </text>
+            {ticks.map((tk) => (
+              <text
+                key={tk.key}
+                x={x(tk.key)}
+                y={size.height - 6}
+                textAnchor="middle"
+                className="footprint-axis"
+              >
+                {tk.label}
+              </text>
+            ))}
             {[...visible]
               .sort(
                 (a, b) =>
@@ -1687,7 +1719,7 @@ function FootprintPanel({
               .map((n) => (
                 <circle
                   key={n.id}
-                  cx={x(n.date)}
+                  cx={dotX[n.id]}
                   cy={y(n.after)}
                   r={selected === n.id ? 5.5 : 4}
                   className={`footprint-dot ${n.kind === 'origin' ? 'origin' : ''}`}
@@ -1701,7 +1733,10 @@ function FootprintPanel({
           <div
             className="footprint-tip"
             style={{
-              left: Math.min(Math.max(x(active.date), 90), size.width - 90),
+              left: Math.min(
+                Math.max(dotX[active.id] ?? x(active.date), 90),
+                size.width - 90,
+              ),
               top: y(active.after),
             }}
           >

@@ -43,9 +43,9 @@ export function dailyCost(
 }
 
 /**
- * The origin day groups records without a start date. It is the first app use
- * day, moved back to the start of the month of the earliest recorded change
- * (start, end or price change) when history predates first use.
+ * The origin day groups records without a start date: the earlier of the first
+ * app use day and the earliest recorded start, end or price-change date. Events
+ * on the origin day become their own nodes right after the origin node.
  */
 export function originDate(subs: Subscription[], firstUse: string) {
   let origin = firstUse;
@@ -55,12 +55,7 @@ export function originDate(subs: Subscription[], firstUse: string) {
       s.endDate,
       ...(s.priceChanges || []).map((c) => c.date),
     ].filter((d): d is string => !!d);
-    for (const d of dates) {
-      // Start of that event's month, or the day before when it is the 1st.
-      const monthStart = `${d.slice(0, 7)}-01`;
-      const before = monthStart < d ? monthStart : addDays(d, -1);
-      if (before < origin) origin = before;
-    }
+    for (const d of dates) if (d < origin) origin = d;
   }
   return origin;
 }
