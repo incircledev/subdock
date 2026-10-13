@@ -102,11 +102,6 @@
   "恢复记录": "Resume record",
   "删除": "Delete",
   "Subdock 仅管理记录，不会创建或取消服务商的实际订阅。": "Subdock manages records only. It does not purchase or cancel subscriptions.",
-  "删除这条订阅记录？": "Delete this subscription record?",
-  "这条记录会被移除，实际订阅不会取消。": "This record will be removed. Your actual subscription will stay active.",
-  "保留记录": "Keep record",
-  "订阅记录已删除": "Subscription record deleted",
-  "删除记录": "Delete record",
   "你的个人订阅空间": "Your personal subscription space",
   "清晰记录，安心管理。": "A clear, calm way to manage subscriptions.",
   "首次打开时显示的是可编辑的示例数据，费用不代表服务商的实时定价。": "Your list starts empty; in local development, turn on Demo mode in Settings to load sample data.",
@@ -173,5 +168,15 @@
   "{name} 调价": "{name} price change",
   "/ 天": "/ day",
   "包含 {count} 个订阅": "Includes {count} subscriptions",
-  "还没有足迹，添加第一个订阅后这里会开始记录。": "No footprint yet. Add your first subscription to start tracking."
+  "还没有足迹，添加第一个订阅后这里会开始记录。": "No footprint yet. Add your first subscription to start tracking.",
+  "结束订阅": "End subscription",
+  "结束订阅 {name}？": "End {name}?",
+  "它会从列表里移走，历史会保留在订阅足迹中。": "It will leave your list, but its history stays in your subscription footprint.",
+  "取消": "Cancel",
+  "误添加？彻底删除": "Added by mistake? Delete permanently",
+  "彻底删除 {name}？": "Permanently delete {name}?",
+  "订阅及其全部历史（含足迹记录）将被永久删除，无法恢复。": "This subscription and all its history (including footprint entries) will be permanently deleted. This cannot be undone.",
+  "彻底删除": "Delete permanently",
+  "已结束订阅，历史保留在订阅足迹中": "Subscription ended. History kept in your footprint",
+  "订阅及历史已彻底删除": "Subscription and history permanently deleted"
 }
