@@ -16,6 +16,12 @@ export type Subscription = {
   brand: string;
   active: boolean;
   notes: string;
+  /** Optional first billing day; older records omit it. */
+  startDate?: string;
+  /** Recorded price changes, each effective from `date`. */
+  priceChanges?: PriceChange[];
+  /** Set when the record is deleted; the subscription stops from this day. */
+  endDate?: string;
 };
 export const categories = [
   '影音娱乐',
@@ -282,17 +288,29 @@ export function isSubscription(value: unknown): value is Subscription {
     typeof s.date === 'string' &&
     /^\d{4}-\d{2}-\d{2}$/.test(s.date) &&
     !Number.isNaN(parseDate(s.date).getTime()) &&
-    dateString(parseDate(s.date)) === s.date
+    dateString(parseDate(s.date)) === s.date &&
+    (s.startDate === undefined || validDate(s.startDate)) &&
+    (s.endDate === undefined || validDate(s.endDate)) &&
+    (s.priceChanges === undefined ||
+      (Array.isArray(s.priceChanges) && s.priceChanges.every(isPriceChange)))
   );
 }
 
 export function normalizeSubscription(value: unknown): Subscription | null {
   if (!value || typeof value !== 'object') return null;
-  const candidate = {
+  const candidate: Record<string, unknown> = {
     ...(value as Record<string, unknown>),
     currency: (value as { currency?: unknown }).currency || DEFAULT_CURRENCY,
   };
+  if (!candidate.startDate) delete candidate.startDate;
+  if (!candidate.endDate) delete candidate.endDate;
+  if (!Array.isArray(candidate.priceChanges)) delete candidate.priceChanges;
+  else candidate.priceChanges = candidate.priceChanges.filter(isPriceChange);
   return isSubscription(candidate) ? candidate : null;
+}
+/** Deleted records stay stored for history but are hidden from their end day. */
+export function isLive(s: Subscription, today: Date) {
+  return !s.endDate || s.endDate > dateString(today);
 }
 export function sampleSubscriptions(today: Date): Subscription[] {
   const rows = [
@@ -302,11 +320,34 @@ export function sampleSubscriptions(today: Date): Subscription[] {
     ['Apple iCloud+', '200 GB', 21, 'monthly', 12, '云端存储', 'apple'],
     ['Netflix', '标准套餐', 78, 'monthly', 15, '影音娱乐', 'netflix'],
     ['Vercel', 'Pro', 1440, 'yearly', 20, '效率工具', 'vercel'],
+    ['房租', '整租', 2300, 'monthly', 17, '生活支出', 'custom'],
+    ['健身房', '月卡', 300, 'monthly', 10, '生活支出', 'custom'],
+    ['腾讯视频', '月度订阅', 30, 'monthly', 6, '影音娱乐', 'tencent-video'],
   ];
+  const ago = (months: number, days = 0) =>
+    dateString(
+      new Date(
+        today.getFullYear(),
+        today.getMonth() - months,
+        today.getDate() - days,
+      ),
+    );
+  const history: Record<number, Partial<Subscription>> = {
+    1: { startDate: ago(5, 3) },
+    2: {
+      startDate: ago(8),
+      priceChanges: [{ date: ago(3), amount: 145, previous: 108 }],
+    },
+    5: { startDate: ago(11, -20) },
+    6: { startDate: ago(6) },
+    7: { startDate: ago(4) },
+    8: { endDate: ago(2, 5) },
+  };
   return rows.map(([name, plan, amount, cycle, days, category, brand], i) => {
     const next = new Date(today);
     next.setDate(next.getDate() + Number(days));
     return {
+      ...history[i],
       id: `sample-${i}`,
       name: String(name),
       plan: String(plan),
@@ -320,4 +361,33 @@ export function sampleSubscriptions(today: Date): Subscription[] {
       notes: '',
     };
   });
+}
+
+export type PriceChange = { date: string; amount: number; previous?: number };
+const validDate = (v: unknown) =>
+  typeof v === 'string' &&
+  /^\d{4}-\d{2}-\d{2}$/.test(v) &&
+  !Number.isNaN(parseDate(v).getTime()) &&
+  dateString(parseDate(v)) === v;
+const validAmount = (v: unknown) =>
+  typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= 10000000;
+export function isPriceChange(v: unknown): v is PriceChange {
+  if (!v || typeof v !== 'object') return false;
+  const p = v as PriceChange;
+  return (
+    validDate(p.date) &&
+    validAmount(p.amount) &&
+    (p.previous === undefined || validAmount(p.previous))
+  );
+}
+/** Price in effect on a given day, honoring the recorded price history. */
+export function priceOn(s: Subscription, day: Date): number {
+  const changes = [...(s.priceChanges || [])].sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
+  if (!changes.length) return s.amount;
+  const key = dateString(day);
+  let price: number | undefined = changes[0].previous;
+  for (const c of changes) if (c.date <= key) price = c.amount;
+  return price ?? s.amount;
 }

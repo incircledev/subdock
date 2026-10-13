@@ -1,11 +1,10 @@
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type SubmitEvent,
   type CSSProperties,
-} from 'react';
+} from "react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -29,7 +28,7 @@ import {
   X,
   CircleHelp,
   Settings,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   siBilibili,
   siClaude,
@@ -51,26 +50,26 @@ import {
   siVercel,
   siWeread,
   siX,
-} from 'simple-icons';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Dialog, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+} from "simple-icons";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogContent,
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogCancel,
-} from '@/components/ui/alert-dialog';
-import { LocalizedDialogContent as DialogContent } from '@/components/localized-dialog';
-import { useI18n } from '@/components/i18n-provider';
-import { LanguageSwitcher } from '@/components/language-switcher';
+} from "@/components/ui/alert-dialog";
+import { LocalizedDialogContent as DialogContent } from "@/components/localized-dialog";
+import { useI18n } from "@/components/i18n-provider";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import {
   categories,
   brandForService,
@@ -79,10 +78,12 @@ import {
   nextRenewal,
   daysUntil,
   isSubscription,
+  isLive,
   normalizeSubscription,
   sampleSubscriptions,
+  parseDate,
   type Subscription,
-} from '@/lib/subscriptions';
+} from "@/lib/subscriptions";
 import {
   currencies,
   convertCurrency,
@@ -94,18 +95,24 @@ import {
   parseExchangeRates,
   type CurrencyCode,
   type ExchangeRates,
-} from '@/lib/currencies';
-const STORAGE = 'subdock.subscriptions.v1';
-const DEMO_STORAGE = 'subdock.demoMode.v1';
-const CURRENCY_STORAGE = 'subdock.displayCurrency.v1';
-const RATE_STORAGE = 'subdock.exchangeRates.v1';
+} from "@/lib/currencies";
+import {
+  buildFootprint,
+  type Convert,
+  type FootprintNode,
+} from "@/lib/footprint";
+const STORAGE = "subdock.subscriptions.v1";
+const DEMO_STORAGE = "subdock.demoMode.v1";
+const CURRENCY_STORAGE = "subdock.displayCurrency.v1";
+const RATE_STORAGE = "subdock.exchangeRates.v1";
+const FIRST_USE_STORAGE = "subdock.firstUse.v1";
 const RATE_MAX_AGE = 24 * 60 * 60 * 1000;
 const colors: Record<string, string> = {
-  影音娱乐: '#8acda8',
-  效率工具: '#aeb9f1',
-  'AI 助手': '#eccf8e',
-  云端存储: '#a3d9ed',
-  生活支出: '#e6b8a2',
+  影音娱乐: "#8acda8",
+  效率工具: "#aeb9f1",
+  "AI 助手": "#eccf8e",
+  云端存储: "#a3d9ed",
+  生活支出: "#e6b8a2",
 };
 const serviceIcons: Record<string, string> = {
   x: siX.path,
@@ -124,34 +131,34 @@ const serviceIcons: Record<string, string> = {
   deepseek: siDeepseek.path,
   kimi: siKimi.path,
   qwen: siQwen.path,
-  'github-copilot': siGithubcopilot.path,
+  "github-copilot": siGithubcopilot.path,
   suno: siSuno.path,
   minimax: siMinimax.path,
   mistral: siMistralai.path,
 };
 const serviceImages: Record<string, string> = {
-  'china-mobile': '/service-icons/china-mobile.svg',
-  'china-telecom': '/service-icons/china-telecom.svg',
-  'china-unicom': '/service-icons/china-unicom.svg',
-  'china-broadnet': '/service-icons/china-broadnet.svg',
-  'tencent-video': '/service-icons/tencent-video.ico',
-  youku: '/service-icons/youku.ico',
-  'qq-music': '/service-icons/qq-music.ico',
-  'baidu-netdisk': '/service-icons/baidu-netdisk.ico',
-  'wps-office': '/service-icons/wps-office.ico',
-  openai: '/service-icons/openai.svg',
-  grok: '/service-icons/grok.svg',
-  copilot: '/service-icons/copilot.svg',
-  midjourney: '/service-icons/midjourney.svg',
-  doubao: '/service-icons/doubao.svg',
-  wenxin: '/service-icons/wenxin.svg',
-  yuanbao: '/service-icons/yuanbao.svg',
-  zhipu: '/service-icons/zhipu.svg',
-  hailuo: '/service-icons/hailuo.svg',
-  kling: '/service-icons/kling.svg',
-  jimeng: '/service-icons/jimeng.svg',
-  xinghuo: '/service-icons/xinghuo.svg',
-  manus: '/service-icons/manus.svg',
+  "china-mobile": "/service-icons/china-mobile.svg",
+  "china-telecom": "/service-icons/china-telecom.svg",
+  "china-unicom": "/service-icons/china-unicom.svg",
+  "china-broadnet": "/service-icons/china-broadnet.svg",
+  "tencent-video": "/service-icons/tencent-video.ico",
+  youku: "/service-icons/youku.ico",
+  "qq-music": "/service-icons/qq-music.ico",
+  "baidu-netdisk": "/service-icons/baidu-netdisk.ico",
+  "wps-office": "/service-icons/wps-office.ico",
+  openai: "/service-icons/openai.svg",
+  grok: "/service-icons/grok.svg",
+  copilot: "/service-icons/copilot.svg",
+  midjourney: "/service-icons/midjourney.svg",
+  doubao: "/service-icons/doubao.svg",
+  wenxin: "/service-icons/wenxin.svg",
+  yuanbao: "/service-icons/yuanbao.svg",
+  zhipu: "/service-icons/zhipu.svg",
+  hailuo: "/service-icons/hailuo.svg",
+  kling: "/service-icons/kling.svg",
+  jimeng: "/service-icons/jimeng.svg",
+  xinghuo: "/service-icons/xinghuo.svg",
+  manus: "/service-icons/manus.svg",
 };
 function Logo({
   brand,
@@ -162,10 +169,10 @@ function Logo({
   name: string;
   small?: boolean;
 }) {
-  const resolvedBrand = brand === 'custom' ? brandForService(name) : brand;
+  const resolvedBrand = brand === "custom" ? brandForService(name) : brand;
   return (
     <span
-      className={`service-logo ${resolvedBrand} ${small ? 'small' : ''}`}
+      className={`service-logo ${resolvedBrand} ${small ? "small" : ""}`}
       aria-hidden="true"
     >
       {serviceImages[resolvedBrand] ? (
@@ -224,30 +231,35 @@ export default function Home() {
   const money = (n: number, currency: CurrencyCode) =>
     formatCurrency(locale, n, currency);
   const shortDate = (date: Date) =>
-    new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(
+    new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(
       date,
     );
   const planLabel = (s: Subscription) =>
-    !s.plan || ['月度订阅', '季度订阅', '年度订阅'].includes(s.plan)
+    !s.plan || ["月度订阅", "季度订阅", "年度订阅"].includes(s.plan)
       ? t(
-          { monthly: '月度订阅', quarterly: '季度订阅', yearly: '年度订阅' }[
+          { monthly: "月度订阅", quarterly: "季度订阅", yearly: "年度订阅" }[
             s.cycle
           ],
         )
-      : s.id.startsWith('sample-')
+      : s.id.startsWith("sample-")
         ? t(s.plan)
         : s.plan;
   const [today, setToday] = useState(new Date(2026, 8, 5));
   const [items, setItems] = useState<Subscription[]>([]);
   const [ready, setReady] = useState(false);
-  const [notice, setNotice] = useState('');
-  const [tab, setTab] = useState('overview');
-  const [category, setCategory] = useState('全部');
-  const [query, setQuery] = useState('');
-  const [sort, setSort] = useState('renewal');
-  const [view, setView] = useState('grid');
-  const [status, setStatus] = useState('active');
+  const [notice, setNotice] = useState("");
+  const [tab, setTab] = useState("overview");
+  const [category, setCategory] = useState("全部");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState("renewal");
+  const [view, setView] = useState("grid");
+  const [status, setStatus] = useState("active");
   const [monthOffset, setMonthOffset] = useState(0);
+  const [firstUse, setFirstUse] = useState("");
+  const [priceDraft, setPriceDraft] = useState<{
+    amount: string;
+    date: string;
+  } | null>(null);
   const [editing, setEditing] = useState<Subscription | null>(null);
   const [open, setOpen] = useState(false);
   const [help, setHelp] = useState(false);
@@ -258,23 +270,26 @@ export default function Home() {
   const [exchangeRates, setExchangeRates] = useState<ExchangeRates | null>(
     null,
   );
-  const [rateDate, setRateDate] = useState('');
+  const [rateDate, setRateDate] = useState("");
   const [rateStatus, setRateStatus] = useState<
-    'loading' | 'ready' | 'cached' | 'unavailable'
-  >('loading');
+    "loading" | "ready" | "cached" | "unavailable"
+  >("loading");
   const [removeId, setRemoveId] = useState<string | null>(null);
+  const [hardDelete, setHardDelete] = useState(false);
   const blank = (): Subscription => ({
-    id: '',
-    name: '',
-    plan: '',
+    id: "",
+    name: "",
+    plan: "",
     amount: 0,
     currency: displayCurrency,
-    cycle: 'monthly',
+    cycle: "monthly",
     date: dateString(today),
-    category: '效率工具',
-    brand: 'custom',
+    startDate: dateString(today),
+    priceChanges: [],
+    category: "效率工具",
+    brand: "custom",
     active: true,
-    notes: '',
+    notes: "",
   });
   const [draft, setDraft] = useState<Subscription>(blank);
   // Restore persisted data and the current date after the first render.
@@ -286,16 +301,23 @@ export default function Home() {
     let storedDemoMode = false;
     try {
       if (import.meta.env.DEV)
-        storedDemoMode = localStorage.getItem(DEMO_STORAGE) === 'true';
+        storedDemoMode = localStorage.getItem(DEMO_STORAGE) === "true";
       setDemoMode(storedDemoMode);
+      const storedFirstUse = localStorage.getItem(FIRST_USE_STORAGE);
+      if (storedFirstUse && /^\d{4}-\d{2}-\d{2}$/.test(storedFirstUse))
+        setFirstUse(storedFirstUse);
+      else {
+        setFirstUse(dateString(now));
+        localStorage.setItem(FIRST_USE_STORAGE, dateString(now));
+      }
       const storedCurrency = localStorage.getItem(CURRENCY_STORAGE);
       if (isCurrencyCode(storedCurrency)) setDisplayCurrency(storedCurrency);
       const saved = localStorage.getItem(STORAGE);
       if (saved) {
         const parsed: unknown = JSON.parse(saved);
-        if (!Array.isArray(parsed)) throw new Error('invalid');
+        if (!Array.isArray(parsed)) throw new Error("invalid");
         const normalized = parsed.map(normalizeSubscription);
-        if (normalized.some((item) => !item)) throw new Error('invalid');
+        if (normalized.some((item) => !item)) throw new Error("invalid");
         const restored = normalized as Subscription[];
         if (parsed.some((item) => !isSubscription(item))) {
           try {
@@ -314,7 +336,7 @@ export default function Home() {
       } else setItems([]);
     } catch {
       setItems([]);
-      setNotice(tRef.current('无法读取数据，已载入空列表。'));
+      setNotice(tRef.current("无法读取数据，已载入空列表。"));
     }
     setReady(true);
   }, []);
@@ -335,8 +357,8 @@ export default function Home() {
         if (parsed && Number(cached.fetchedAt) > 0) {
           cachedAt = Number(cached.fetchedAt);
           setExchangeRates(parsed);
-          setRateDate(typeof cached.date === 'string' ? cached.date : '');
-          setRateStatus('cached');
+          setRateDate(typeof cached.date === "string" ? cached.date : "");
+          setRateStatus("cached");
         }
       }
     } catch {
@@ -344,19 +366,19 @@ export default function Home() {
     }
 
     if (Date.now() - cachedAt < RATE_MAX_AGE) {
-      setRateStatus('ready');
+      setRateStatus("ready");
       return () => controller.abort();
     }
 
     void fetch(EXCHANGE_RATE_URL, { signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error('rate request failed');
+        if (!response.ok) throw new Error("rate request failed");
         const payload: unknown = await response.json();
         const parsed = parseExchangeRates(payload);
-        if (!parsed) throw new Error('invalid rates');
+        if (!parsed) throw new Error("invalid rates");
         const first = Array.isArray(payload) ? payload[0] : null;
         const date =
-          first && typeof first === 'object' && 'date' in first
+          first && typeof first === "object" && "date" in first
             ? String(first.date)
             : dateString(new Date());
         const cache = { fetchedAt: Date.now(), date, rates: parsed };
@@ -367,30 +389,30 @@ export default function Home() {
         }
         setExchangeRates(parsed);
         setRateDate(date);
-        setRateStatus('ready');
+        setRateStatus("ready");
       })
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === 'AbortError')
+        if (error instanceof DOMException && error.name === "AbortError")
           return;
-        setRateStatus(cachedAt ? 'cached' : 'unavailable');
+        setRateStatus(cachedAt ? "cached" : "unavailable");
       });
     return () => controller.abort();
   }, []);
   /* eslint-enable react/react-compiler */
   useEffect(() => {
     if (!notice) return;
-    const timer = setTimeout(() => setNotice(''), 5500);
+    const timer = setTimeout(() => setNotice(""), 5500);
     return () => clearTimeout(timer);
   }, [notice]);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        document.getElementById('subscription-search')?.focus();
+        document.getElementById("subscription-search")?.focus();
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
   const commit = (next: Subscription[], message: string) => {
     setItems(next);
@@ -398,7 +420,7 @@ export default function Home() {
       localStorage.setItem(STORAGE, JSON.stringify(next));
       setNotice(message);
     } catch {
-      setNotice(t('更改已生效，但未能保存。请稍后重试。'));
+      setNotice(t("更改已生效，但未能保存。请稍后重试。"));
     }
   };
   const changeDisplayCurrency = (currency: CurrencyCode) => {
@@ -406,7 +428,7 @@ export default function Home() {
     try {
       localStorage.setItem(CURRENCY_STORAGE, currency);
     } catch {
-      setNotice(t('本位币已切换，但未能保存偏好。'));
+      setNotice(t("本位币已切换，但未能保存偏好。"));
     }
   };
   const toggleDemoMode = (enabled: boolean) => {
@@ -415,16 +437,17 @@ export default function Home() {
     try {
       localStorage.setItem(DEMO_STORAGE, String(enabled));
     } catch {
-      setNotice(t('更改已生效，但未能保存。请稍后重试。'));
+      setNotice(t("更改已生效，但未能保存。请稍后重试。"));
     }
     const next = enabled
       ? items.length === 0
         ? sampleSubscriptions(new Date())
         : items
-      : items.filter((item) => !item.id.startsWith('sample-'));
-    if (next !== items) commit(next, '');
+      : items.filter((item) => !item.id.startsWith("sample-"));
+    if (next !== items) commit(next, "");
   };
-  const active = items.filter((s) => s.active);
+  const liveItems = items.filter((s) => isLive(s, today));
+  const active = liveItems.filter((s) => s.active);
   const convertedAmount = (s: Subscription, amount = s.amount) =>
     convertCurrency(amount, s.currency, displayCurrency, exchangeRates);
   const convertedMonthlyAmount = (s: Subscription) =>
@@ -435,26 +458,22 @@ export default function Home() {
     ? totalParts.reduce<number>((sum, amount) => sum + (amount || 0), 0)
     : null;
   const totalValue = total || 0;
-  const upcoming = useMemo(
-    () =>
-      items
-        .filter((s) => s.active)
-        .map((s) => ({ ...s, next: nextRenewal(s, today) }))
-        .sort((a, b) => a.next.getTime() - b.next.getTime()),
-    [items, today],
-  );
+  const upcoming = liveItems
+    .filter((s) => s.active)
+    .map((s) => ({ ...s, next: nextRenewal(s, today) }))
+    .sort((a, b) => a.next.getTime() - b.next.getTime());
   const nextWeek = upcoming.filter((s) => daysUntil(s.next, today) <= 7);
-  const filtered = items
+  const filtered = liveItems
     .filter(
       (s) =>
-        (status === 'all' || s.active === (status === 'active')) &&
-        (category === '全部' || s.category === category) &&
+        (status === "all" || s.active === (status === "active")) &&
+        (category === "全部" || s.category === category) &&
         `${s.name} ${planLabel(s)}`.toLowerCase().includes(query.toLowerCase()),
     )
     .sort((a, b) =>
-      sort === 'amount'
+      sort === "amount"
         ? (convertedMonthlyAmount(b) || 0) - (convertedMonthlyAmount(a) || 0)
-        : sort === 'name'
+        : sort === "name"
           ? a.name.localeCompare(b.name, locale)
           : nextRenewal(a, today).getTime() - nextRenewal(b, today).getTime(),
     );
@@ -471,7 +490,7 @@ export default function Home() {
       angle += totalValue ? (b.amount / totalValue) * 100 : 0;
       return `${colors[b.name]} ${from}% ${angle}%`;
     })
-    .join(', ');
+    .join(", ");
   const month = new Date(
     today.getFullYear(),
     today.getMonth() + monthOffset,
@@ -498,7 +517,26 @@ export default function Home() {
   const monthEventTotal = monthEventAmounts.every((amount) => amount !== null)
     ? monthEventAmounts.reduce<number>((sum, amount) => sum + (amount || 0), 0)
     : null;
+  const todayKey = dateString(today);
+  const recordPriceChange = () => {
+    if (!priceDraft) return;
+    const amount = Number(priceDraft.amount);
+    if (!(amount > 0) || !priceDraft.date) return;
+    const change = { date: priceDraft.date, amount, previous: draft.amount };
+    const priceChanges = [...(draft.priceChanges || []), change];
+    const current = priceChanges
+      .filter((c) => c.date <= todayKey)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .pop();
+    setDraft({
+      ...draft,
+      priceChanges,
+      amount: current ? current.amount : draft.amount,
+    });
+    setPriceDraft(null);
+  };
   const startEdit = (s?: Subscription) => {
+    setPriceDraft(null);
     setEditing(s || null);
     setDraft(s ? { ...s } : blank());
     setOpen(true);
@@ -511,21 +549,23 @@ export default function Home() {
       name: draft.name.trim(),
       plan: draft.plan.trim(),
     };
+    if (!s.startDate) delete s.startDate;
     if (!isSubscription(s)) {
-      setNotice(t('请填写有效的名称、金额和续费日期。'));
+      setNotice(t("请填写有效的名称、金额和续费日期。"));
       return;
     }
     commit(
       editing ? items.map((i) => (i.id === s.id ? s : i)) : [...items, s],
-      editing ? t('订阅已更新') : t('{name} 已加入你的订阅', { name: s.name }),
+      editing ? t("订阅已更新") : t("{name} 已加入你的订阅", { name: s.name }),
     );
     setOpen(false);
   };
+  const removeName = items.find((s) => s.id === removeId)?.name ?? "";
   return (
     <div className="app-shell">
       <Tabs value={tab} onValueChange={(v) => setTab(String(v))}>
         <header className="topbar">
-          <a className="wordmark" href="/" aria-label={t('Subdock 首页')}>
+          <a className="wordmark" href="/" aria-label={t("Subdock 首页")}>
             <span className="brand-icon">
               <Layers size={23} strokeWidth={2.4} />
             </span>
@@ -534,15 +574,15 @@ export default function Home() {
           <TabsList className="navigation">
             <TabsTrigger value="overview">
               <LayoutGrid size={16} />
-              <span>{t('总览')}</span>
+              <span>{t("总览")}</span>
             </TabsTrigger>
             <TabsTrigger value="calendar">
               <CalendarDays size={16} />
-              <span>{t('续费日历')}</span>
+              <span>{t("续费日历")}</span>
             </TabsTrigger>
             <TabsTrigger value="insights">
               <ChartNoAxesCombined size={16} />
-              <span>{t('支出洞察')}</span>
+              <span>{t("支出洞察")}</span>
             </TabsTrigger>
           </TabsList>
           <div className="header-right">
@@ -550,20 +590,20 @@ export default function Home() {
             <button
               className="settings-trigger"
               onClick={() => setSettings(true)}
-              aria-label={t('打开设置')}
-              title={t('设置')}
+              aria-label={t("打开设置")}
+              title={t("设置")}
             >
               <Settings size={17} />
-              <span>{t('设置')}</span>
+              <span>{t("设置")}</span>
             </button>
             <span className="local-label">
               <span />
-              {t('个人空间')}
+              {t("个人空间")}
             </span>
             <button
               className="avatar"
               onClick={() => setHelp(true)}
-              aria-label={t('查看个人空间说明')}
+              aria-label={t("查看个人空间说明")}
             >
               S
             </button>
@@ -573,21 +613,21 @@ export default function Home() {
           <div className="page-heading">
             <div>
               <div className="eyebrow">
-                {t('YOUR SUBSCRIPTIONS, IN HARMONY')}
+                {t("YOUR SUBSCRIPTIONS, IN HARMONY")}
               </div>
               <h1>
-                {tab === 'calendar'
-                  ? t('每次续费，心中有数。')
-                  : tab === 'insights'
-                    ? t('让每一笔，都值得。')
-                    : t('订阅生活，井井有条。')}
+                {tab === "calendar"
+                  ? t("每次续费，心中有数。")
+                  : tab === "insights"
+                    ? t("让每一笔，都值得。")
+                    : t("订阅生活，井井有条。")}
               </h1>
               <p>
-                {tab === 'calendar'
-                  ? t('提前看见下一笔支出，从容安排你的订阅。')
-                  : tab === 'insights'
-                    ? t('看清开销的去向，把预算留给真正喜欢的事。')
-                    : t('把喜欢的服务留在身边，把每一笔开销看得清楚。')}
+                {tab === "calendar"
+                  ? t("提前看见下一笔支出，从容安排你的订阅。")
+                  : tab === "insights"
+                    ? t("看清开销的去向，把预算留给真正喜欢的事。")
+                    : t("把喜欢的服务留在身边，把每一笔开销看得清楚。")}
               </p>
             </div>
             <button
@@ -596,16 +636,16 @@ export default function Home() {
               disabled={!ready}
             >
               <Plus size={18} />
-              {t('添加订阅')}
+              {t("添加订阅")}
             </button>
           </div>
           <TabsContent value="overview">
-            <section className="summary-grid" aria-label={t('订阅概览')}>
+            <section className="summary-grid" aria-label={t("订阅概览")}>
               <div className="spend-card">
                 <div className="spend-top">
                   <span>
                     <span className="green-dot" />
-                    {t('每月订阅支出')}
+                    {t("每月订阅支出")}
                   </span>
                   <span className="glass-pill">
                     {displayCurrency} <ArrowDownLeft size={13} />
@@ -629,10 +669,10 @@ export default function Home() {
                 </div>
                 <p>
                   {total === null
-                    ? rateStatus === 'loading'
-                      ? t('正在获取汇率…')
-                      : t('汇率暂不可用，原币金额仍完整保留。')
-                    : t('季付、年付订阅已折算为月均费用')}
+                    ? rateStatus === "loading"
+                      ? t("正在获取汇率…")
+                      : t("汇率暂不可用，原币金额仍完整保留。")
+                    : t("季付、年付订阅已折算为月均费用")}
                 </p>
                 <div className="spend-bottom">
                   <div className="stacked-logos">
@@ -646,7 +686,7 @@ export default function Home() {
                     </span>
                   </div>
                   <span>
-                    {t('为喜欢的生活买单')}
+                    {t("为喜欢的生活买单")}
                     <ArrowUpRight size={15} />
                   </span>
                 </div>
@@ -656,30 +696,30 @@ export default function Home() {
               <div className="stats-card">
                 <div className="stat-block">
                   <div className="stat-label">
-                    {t('正在订阅')}{' '}
+                    {t("正在订阅")}{" "}
                     <span className="mini-icon">
                       <Layers size={17} />
                     </span>
                   </div>
                   <div className="stat-number">
                     {active.length}
-                    <span>{t('个服务', { count: active.length })}</span>
+                    <span>{t("个服务", { count: active.length })}</span>
                   </div>
                   <div className="stat-note">
                     <span className="green-dot" />
-                    {t('{count} 个类别，让生活更丰富', {
+                    {t("{count} 个类别，让生活更丰富", {
                       count: new Set(active.map((s) => s.category)).size,
                     })}
                   </div>
                 </div>
                 <div className="stat-block">
                   <div className="stat-label">
-                    {t('预计年度支出')}
+                    {t("预计年度支出")}
                     <ArrowUpRight size={17} />
                   </div>
                   <div className="stat-number annual">
                     {total === null ? (
-                      '—'
+                      "—"
                     ) : (
                       <>
                         <span className="currency">{annualDisplay.symbol}</span>
@@ -693,13 +733,13 @@ export default function Home() {
                       </>
                     )}
                   </div>
-                  <div className="stat-note">{t('按当前有效订阅估算')}</div>
+                  <div className="stat-note">{t("按当前有效订阅估算")}</div>
                 </div>
               </div>
               <div className="renewal-card">
                 <div className="section-title">
-                  <h2>{t('即将续费')}</h2>
-                  <span className="soft-badge">{t('未来 7 天')}</span>
+                  <h2>{t("即将续费")}</h2>
+                  <span className="soft-badge">{t("未来 7 天")}</span>
                 </div>
                 {nextWeek.length ? (
                   <div className="renewals">
@@ -714,10 +754,10 @@ export default function Home() {
                           <strong>{s.name}</strong>
                           <span>
                             {daysUntil(s.next, today) === 0
-                              ? t('今天')
-                              : t('{count} 天后', {
+                              ? t("今天")
+                              : t("{count} 天后", {
                                   count: daysUntil(s.next, today),
-                                })}{' '}
+                                })}{" "}
                             · {shortDate(s.next)}
                           </span>
                         </span>
@@ -730,14 +770,14 @@ export default function Home() {
                 ) : (
                   <div className="no-renewals">
                     <Check size={24} />
-                    <span>{t('这周没有待续费的订阅')}</span>
+                    <span>{t("这周没有待续费的订阅")}</span>
                   </div>
                 )}
                 <button
                   className="calendar-link"
-                  onClick={() => setTab('calendar')}
+                  onClick={() => setTab("calendar")}
                 >
-                  {t('查看续费日历')}
+                  {t("查看续费日历")}
                   <ArrowRight size={15} />
                 </button>
               </div>
@@ -746,10 +786,10 @@ export default function Home() {
               <div className="list-heading">
                 <div>
                   <h2>
-                    {t('我的订阅')}
-                    <span>{items.length}</span>
+                    {t("我的订阅")}
+                    <span>{liveItems.length}</span>
                   </h2>
-                  <p>{t('那些让日常更美好的小小投资。')}</p>
+                  <p>{t("那些让日常更美好的小小投资。")}</p>
                 </div>
                 <div className="list-actions">
                   <div className="search-box">
@@ -758,25 +798,25 @@ export default function Home() {
                       id="subscription-search"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      placeholder={t('搜索订阅…')}
-                      aria-label={t('搜索订阅')}
+                      placeholder={t("搜索订阅…")}
+                      aria-label={t("搜索订阅")}
                     />
                     <kbd>⌘ K</kbd>
                   </div>
-                  <div className="view-switch" aria-label={t('显示方式')}>
+                  <div className="view-switch" aria-label={t("显示方式")}>
                     <button
-                      className={view === 'grid' ? 'selected' : ''}
-                      onClick={() => setView('grid')}
-                      aria-label={t('卡片视图')}
-                      aria-pressed={view === 'grid'}
+                      className={view === "grid" ? "selected" : ""}
+                      onClick={() => setView("grid")}
+                      aria-label={t("卡片视图")}
+                      aria-pressed={view === "grid"}
                     >
                       <LayoutGrid size={17} />
                     </button>
                     <button
-                      className={view === 'list' ? 'selected' : ''}
-                      onClick={() => setView('list')}
-                      aria-label={t('列表视图')}
-                      aria-pressed={view === 'list'}
+                      className={view === "list" ? "selected" : ""}
+                      onClick={() => setView("list")}
+                      aria-label={t("列表视图")}
+                      aria-pressed={view === "list"}
                     >
                       <List size={18} />
                     </button>
@@ -785,15 +825,15 @@ export default function Home() {
               </div>
               <div className="filter-row">
                 <div className="category-filters">
-                  {['全部', ...categories].map((c) => (
+                  {["全部", ...categories].map((c) => (
                     <button
                       key={c}
-                      className={category === c ? 'active' : ''}
+                      className={category === c ? "active" : ""}
                       onClick={() => setCategory(c)}
                       aria-pressed={category === c}
                     >
                       {t(c)}
-                      {c === '全部' && <span>{items.length}</span>}
+                      {c === "全部" && <span>{liveItems.length}</span>}
                     </button>
                   ))}
                 </div>
@@ -801,41 +841,41 @@ export default function Home() {
                   <Picker
                     value={status}
                     onChange={setStatus}
-                    label={t('订阅状态')}
+                    label={t("订阅状态")}
                     options={[
-                      { value: 'active', label: t('订阅中') },
-                      { value: 'paused', label: t('已暂停') },
-                      { value: 'all', label: t('全部状态') },
+                      { value: "active", label: t("订阅中") },
+                      { value: "paused", label: t("已暂停") },
+                      { value: "all", label: t("全部状态") },
                     ]}
                   />
                   <SlidersHorizontal size={15} />
                   <Picker
                     value={sort}
                     onChange={setSort}
-                    label={t('排序方式')}
+                    label={t("排序方式")}
                     options={[
                       {
-                        value: 'renewal',
-                        label: t('按续费时间'),
+                        value: "renewal",
+                        label: t("按续费时间"),
                       },
                       {
-                        value: 'amount',
-                        label: t('按月均金额'),
+                        value: "amount",
+                        label: t("按月均金额"),
                       },
-                      { value: 'name', label: t('按名称') },
+                      { value: "name", label: t("按名称") },
                     ]}
                   />
                 </div>
               </div>
               <div
-                className={`subscription-grid ${view === 'list' ? 'list-view' : ''}`}
+                className={`subscription-grid ${view === "list" ? "list-view" : ""}`}
               >
                 {filtered.map((s) => {
                   const next = nextRenewal(s, today);
                   const days = daysUntil(next, today);
                   return (
                     <button
-                      className={`subscription-card brand-${s.brand} ${!s.active ? 'paused' : ''}`}
+                      className={`subscription-card brand-${s.brand} ${!s.active ? "paused" : ""}`}
                       key={s.id}
                       onClick={() => startEdit(s)}
                     >
@@ -850,9 +890,9 @@ export default function Home() {
                       <div className="card-price">
                         <strong>{money(s.amount, s.currency)}</strong>
                         <span>
-                          /{' '}
+                          /{" "}
                           {t(
-                            { monthly: '月', quarterly: '季', yearly: '年' }[
+                            { monthly: "月", quarterly: "季", yearly: "年" }[
                               s.cycle
                             ],
                           )}
@@ -861,7 +901,7 @@ export default function Home() {
                           className="category-label"
                           style={
                             {
-                              '--category-color': colors[s.category],
+                              "--category-color": colors[s.category],
                             } as CSSProperties
                           }
                         >
@@ -874,56 +914,56 @@ export default function Home() {
                           {!s.active ? (
                             <>
                               <Pause size={12} />
-                              {t('已暂停记录')}
+                              {t("已暂停记录")}
                             </>
                           ) : (
                             <>
                               <span
                                 className={
-                                  days <= 7 ? 'due-dot' : 'neutral-dot'
+                                  days <= 7 ? "due-dot" : "neutral-dot"
                                 }
                               />
-                              {t('{date}续费', { date: shortDate(next) })}
+                              {t("{date}续费", { date: shortDate(next) })}
                             </>
                           )}
                         </span>
                         <span
-                          className={s.active && days <= 7 ? 'due-badge' : ''}
+                          className={s.active && days <= 7 ? "due-badge" : ""}
                         >
                           {!s.active
-                            ? t('点击管理')
+                            ? t("点击管理")
                             : days === 0
-                              ? t('今天')
-                              : t('{count} 天后', { count: days })}
+                              ? t("今天")
+                              : t("{count} 天后", { count: days })}
                         </span>
                       </div>
                     </button>
                   );
                 })}
-                {category === '全部' && !query && status === 'active' && (
+                {category === "全部" && !query && status === "active" && (
                   <button className="add-card" onClick={() => startEdit()}>
                     <span className="add-circle">
                       <Plus size={22} />
                     </span>
-                    <strong>{t('再添一份喜欢')}</strong>
-                    <span>{t('把你的下一个订阅放进来')}</span>
+                    <strong>{t("再添一份喜欢")}</strong>
+                    <span>{t("把你的下一个订阅放进来")}</span>
                   </button>
                 )}
               </div>
               {!filtered.length && (
                 <div className="empty-result">
                   <Search size={25} />
-                  <h3>{query ? t('没有找到这个订阅') : t('这里还没有订阅')}</h3>
-                  <p>{t('试试其他分类，或添加一个新的订阅。')}</p>
+                  <h3>{query ? t("没有找到这个订阅") : t("这里还没有订阅")}</h3>
+                  <p>{t("试试其他分类，或添加一个新的订阅。")}</p>
                   <button
                     onClick={() => {
-                      setCategory('全部');
-                      setQuery('');
-                      setStatus('all');
+                      setCategory("全部");
+                      setQuery("");
+                      setStatus("all");
                     }}
                     className="text-button"
                   >
-                    {t('查看全部订阅')}
+                    {t("查看全部订阅")}
                     <ArrowRight size={15} />
                   </button>
                 </div>
@@ -934,11 +974,11 @@ export default function Home() {
                 <Sparkles size={17} />
               </span>
               <p>
-                <strong>{t('少一点无意识的续费，多一点有意识的喜欢。')}</strong>
-                <span>{t('定期回顾你的订阅，把空间留给真正重要的事。')}</span>
+                <strong>{t("少一点无意识的续费，多一点有意识的喜欢。")}</strong>
+                <span>{t("定期回顾你的订阅，把空间留给真正重要的事。")}</span>
               </p>
               <span className="note-mark">
-                {t('make room for what matters.')}
+                {t("make room for what matters.")}
               </span>
             </div>
           </TabsContent>
@@ -948,30 +988,30 @@ export default function Home() {
                 <div>
                   <h2>
                     {new Intl.DateTimeFormat(locale, {
-                      year: 'numeric',
-                      month: 'long',
+                      year: "numeric",
+                      month: "long",
                     }).format(month)}
                   </h2>
                   <p>
-                    {t('{count} 笔续费 · 合计 {amount}', {
+                    {t("{count} 笔续费 · 合计 {amount}", {
                       count: monthEvents.length,
                       amount:
                         monthEventTotal === null
-                          ? '—'
+                          ? "—"
                           : money(monthEventTotal, displayCurrency),
                     })}
                   </p>
                 </div>
                 <div className="calendar-controls">
                   <button
-                    aria-label={t('上个月')}
+                    aria-label={t("上个月")}
                     onClick={() => setMonthOffset((n) => n - 1)}
                   >
                     <ChevronLeft size={18} />
                   </button>
-                  <button onClick={() => setMonthOffset(0)}>{t('本月')}</button>
+                  <button onClick={() => setMonthOffset(0)}>{t("本月")}</button>
                   <button
-                    aria-label={t('下个月')}
+                    aria-label={t("下个月")}
                     onClick={() => setMonthOffset((n) => n + 1)}
                   >
                     <ChevronRight size={18} />
@@ -980,7 +1020,7 @@ export default function Home() {
               </div>
               <div className="calendar-grid">
                 {Array.from({ length: 7 }, (_, i) =>
-                  new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(
+                  new Intl.DateTimeFormat(locale, { weekday: "short" }).format(
                     new Date(2026, 0, 4 + i),
                   ),
                 ).map((d) => (
@@ -1006,7 +1046,7 @@ export default function Home() {
                     );
                     return (
                       <div
-                        className={`calendar-cell ${dateString(new Date(month.getFullYear(), month.getMonth(), day)) === dateString(today) ? 'today' : ''}`}
+                        className={`calendar-cell ${dateString(new Date(month.getFullYear(), month.getMonth(), day)) === dateString(today) ? "today" : ""}`}
                         key={day}
                       >
                         <span className="day-number">{day}</span>
@@ -1030,16 +1070,23 @@ export default function Home() {
                 )}
               </div>
               <p className="calendar-caption">
-                {t('根据当前订阅的续费周期推算，不代表已实际扣款。')}
+                {t("根据当前订阅的续费周期推算，不代表已实际扣款。")}
               </p>
             </section>
           </TabsContent>
           <TabsContent value="insights">
+            <FootprintPanel
+              subs={items}
+              today={today}
+              firstUse={firstUse || todayKey}
+              convert={(sub, amount) => convertedAmount(sub, amount) ?? 0}
+              currency={displayCurrency}
+            />
             <section className="insights-surface">
               <div className="insight-title">
-                <span className="eyebrow">{t('THE BIGGER PICTURE')}</span>
-                <h2>{t('你的喜欢，各有所占。')}</h2>
-                <p>{t('按月均费用，了解每一类订阅的占比。')}</p>
+                <span className="eyebrow">{t("THE BIGGER PICTURE")}</span>
+                <h2>{t("你的喜欢，各有所占。")}</h2>
+                <p>{t("按月均费用，了解每一类订阅的占比。")}</p>
               </div>
               <div className="insights-content">
                 <div
@@ -1047,16 +1094,16 @@ export default function Home() {
                   style={{
                     background: totalValue
                       ? `conic-gradient(${pie})`
-                      : '#e9eae7',
+                      : "#e9eae7",
                   }}
                 >
                   <div>
-                    <span>{t('每月合计')}</span>
+                    <span>{t("每月合计")}</span>
                     <strong>
-                      {total === null ? '—' : money(total, displayCurrency)}
+                      {total === null ? "—" : money(total, displayCurrency)}
                     </strong>
                     <small>
-                      {t('{count} 个有效订阅', { count: active.length })}
+                      {t("{count} 个有效订阅", { count: active.length })}
                     </small>
                   </div>
                 </div>
@@ -1069,7 +1116,7 @@ export default function Home() {
                           {t(b.name)}
                         </span>
                         <strong>
-                          {money(b.amount, displayCurrency)}{' '}
+                          {money(b.amount, displayCurrency)}{" "}
                           <small>
                             {totalValue
                               ? Math.round((b.amount / totalValue) * 100)
@@ -1093,12 +1140,12 @@ export default function Home() {
               <div className="insight-foot">
                 <span>
                   <ShieldCheck size={18} />
-                  {t('仅统计有效订阅，年付费用按 12 个月均摊。')}
+                  {t("仅统计有效订阅，年付费用按 12 个月均摊。")}
                 </span>
                 <strong>
-                  {t('年度预计 {amount}', {
+                  {t("年度预计 {amount}", {
                     amount:
-                      total === null ? '—' : money(total * 12, displayCurrency),
+                      total === null ? "—" : money(total * 12, displayCurrency),
                   })}
                 </strong>
               </div>
@@ -1107,11 +1154,11 @@ export default function Home() {
           <footer>
             <span>
               <Layers size={15} />
-              {t('subdock · 为每一份喜欢，找到归处。')}
+              {t("subdock · 为每一份喜欢，找到归处。")}
             </span>
             <button onClick={() => setHelp(true)}>
               <ShieldCheck size={14} />
-              {t('使用说明')}
+              {t("使用说明")}
               <CircleHelp size={13} />
             </button>
           </footer>
@@ -1120,29 +1167,29 @@ export default function Home() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="subscription-dialog">
           <DialogTitle>
-            {editing ? t('管理订阅') : t('添加一份喜欢')}
+            {editing ? t("管理订阅") : t("添加一份喜欢")}
           </DialogTitle>
           <DialogDescription>
-            {t('记录原始费用与续费日期，汇总时自动换算为本位币。')}
+            {t("记录原始费用与续费日期，汇总时自动换算为本位币。")}
           </DialogDescription>
           <form onSubmit={save} className="subscription-form">
             <div className="form-brand">
-              <Logo brand={draft.brand} name={draft.name || 'S'} />
+              <Logo brand={draft.brand} name={draft.name || "S"} />
               <div>
-                <strong>{draft.name || t('新的订阅')}</strong>
+                <strong>{draft.name || t("新的订阅")}</strong>
                 <span>
                   {editing
-                    ? t('让每一份订阅都值得')
-                    : t('从这里开始，井井有条')}
+                    ? t("让每一份订阅都值得")
+                    : t("从这里开始，井井有条")}
                 </span>
               </div>
             </div>
             <label>
-              {t('服务名称')}
+              {t("服务名称")}
               <input
                 required
                 maxLength={60}
-                placeholder={t('例如 Spotify、Notion')}
+                placeholder={t("例如 Spotify、Notion")}
                 value={draft.name}
                 onChange={(e) => {
                   const name = e.target.value;
@@ -1155,19 +1202,19 @@ export default function Home() {
               />
             </label>
             <label>
-              {t('套餐名称')}
+              {t("套餐名称")}
               <input
                 maxLength={80}
-                placeholder={t('例如 Premium 个人')}
+                placeholder={t("例如 Premium 个人")}
                 value={
-                  editing?.id.startsWith('sample-') ? t(draft.plan) : draft.plan
+                  editing?.id.startsWith("sample-") ? t(draft.plan) : draft.plan
                 }
                 onChange={(e) => setDraft({ ...draft, plan: e.target.value })}
               />
             </label>
             <div className="form-columns">
               <label>
-                {t('金额')}
+                {t("金额")}
                 <input
                   type="number"
                   min="0.01"
@@ -1175,16 +1222,28 @@ export default function Home() {
                   step="0.01"
                   required
                   placeholder="0.00"
-                  value={draft.amount || ''}
+                  value={draft.amount || ""}
                   onChange={(e) =>
                     setDraft({ ...draft, amount: Number(e.target.value) })
                   }
                 />
+                <button
+                  type="button"
+                  className="price-change-link"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setPriceDraft(
+                      priceDraft ? null : { amount: "", date: todayKey },
+                    );
+                  }}
+                >
+                  {t("+ 记录调价")}
+                </button>
               </label>
               <div className="form-field">
-                <span>{t('货币')}</span>
+                <span>{t("货币")}</span>
                 <Picker
-                  label={t('货币')}
+                  label={t("货币")}
                   value={draft.currency}
                   onChange={(v) =>
                     setDraft({ ...draft, currency: v as CurrencyCode })
@@ -1196,24 +1255,93 @@ export default function Home() {
                 />
               </div>
             </div>
+            {(priceDraft || (draft.priceChanges || []).length > 0) && (
+              <div className="price-changes">
+                {priceDraft && (
+                  <div className="price-change-editor">
+                    <label>
+                      {t("新价格")}
+                      <input
+                        type="number"
+                        min="0.01"
+                        max="10000000"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={priceDraft.amount}
+                        onChange={(e) =>
+                          setPriceDraft({
+                            ...priceDraft,
+                            amount: e.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                    <label>
+                      {t("生效日期")}
+                      <input
+                        type="date"
+                        min="2000-01-01"
+                        max="2100-12-31"
+                        value={priceDraft.date}
+                        onChange={(e) =>
+                          setPriceDraft({ ...priceDraft, date: e.target.value })
+                        }
+                      />
+                    </label>
+                    <button type="button" onClick={recordPriceChange}>
+                      {t("记录")}
+                    </button>
+                  </div>
+                )}
+                {[...(draft.priceChanges || [])]
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                  .map((c) => (
+                    <div
+                      className="price-change-row"
+                      key={`${c.date}-${c.amount}`}
+                    >
+                      <span>{shortDate(parseDate(c.date))}</span>
+                      <span>
+                        {c.previous !== undefined &&
+                          `${money(c.previous, draft.currency)} → `}
+                        {money(c.amount, draft.currency)}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={t("删除")}
+                        onClick={() =>
+                          setDraft({
+                            ...draft,
+                            priceChanges: (draft.priceChanges || []).filter(
+                              (x) => x !== c,
+                            ),
+                          })
+                        }
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            )}
             <div className="form-columns">
               <div className="form-field">
-                <span>{t('付款周期')}</span>
+                <span>{t("付款周期")}</span>
                 <Picker
-                  label={t('付款周期')}
+                  label={t("付款周期")}
                   value={draft.cycle}
                   onChange={(v) =>
-                    setDraft({ ...draft, cycle: v as Subscription['cycle'] })
+                    setDraft({ ...draft, cycle: v as Subscription["cycle"] })
                   }
                   options={[
-                    { value: 'monthly', label: t('每月') },
-                    { value: 'quarterly', label: t('每季（每三个月）') },
-                    { value: 'yearly', label: t('每年') },
+                    { value: "monthly", label: t("每月") },
+                    { value: "quarterly", label: t("每季（每三个月）") },
+                    { value: "yearly", label: t("每年") },
                   ]}
                 />
               </div>
               <label>
-                {t('下一次续费')}
+                {t("下一次续费")}
                 <input
                   type="date"
                   min="2000-01-01"
@@ -1224,28 +1352,44 @@ export default function Home() {
                 />
               </label>
             </div>
+            <label>
+              {t("开始日期")}
+              <span className="optional">{t("选填")}</span>
+              <input
+                type="date"
+                min="2000-01-01"
+                max="2100-12-31"
+                value={draft.startDate || ""}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    startDate: e.target.value || undefined,
+                  })
+                }
+              />
+            </label>
             <div className="form-field">
-              <span>{t('分类')}</span>
+              <span>{t("分类")}</span>
               <Picker
-                label={t('分类')}
+                label={t("分类")}
                 value={draft.category}
                 onChange={(v) => setDraft({ ...draft, category: v })}
                 options={categories.map((c) => ({ value: c, label: t(c) }))}
               />
             </div>
             <label>
-              {t('备注')}
-              <span className="optional">{t('选填')}</span>
+              {t("备注")}
+              <span className="optional">{t("选填")}</span>
               <input
                 maxLength={300}
-                placeholder={t('给未来的自己留个提醒')}
+                placeholder={t("给未来的自己留个提醒")}
                 value={draft.notes}
                 onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
               />
             </label>
             <button type="submit" className="primary-button save-button">
               <Check size={17} />
-              {editing ? t('保存更改') : t('添加订阅')}
+              {editing ? t("保存更改") : t("添加订阅")}
             </button>
             {editing && (
               <div className="edit-actions">
@@ -1257,14 +1401,14 @@ export default function Home() {
                         s.id === editing.id ? { ...s, active: !s.active } : s,
                       ),
                       editing.active
-                        ? t('已暂停记录；实际订阅请前往服务商取消。')
-                        : t('已恢复订阅记录'),
+                        ? t("已暂停记录；实际订阅请前往服务商取消。")
+                        : t("已恢复订阅记录"),
                     );
                     setOpen(false);
                   }}
                 >
-                  {editing.active ? <Pause size={15} /> : <Play size={15} />}{' '}
-                  {editing.active ? t('暂停记录') : t('恢复记录')}
+                  {editing.active ? <Pause size={15} /> : <Play size={15} />}{" "}
+                  {editing.active ? t("暂停记录") : t("恢复记录")}
                 </button>
                 <button
                   className="delete-button"
@@ -1275,12 +1419,12 @@ export default function Home() {
                   }}
                 >
                   <Trash2 size={15} />
-                  {t('删除')}
+                  {t("结束订阅")}
                 </button>
               </div>
             )}
             <p className="form-disclaimer">
-              {t('Subdock 仅管理记录，不会创建或取消服务商的实际订阅。')}
+              {t("Subdock 仅管理记录，不会创建或取消服务商的实际订阅。")}
             </p>
           </form>
         </DialogContent>
@@ -1288,66 +1432,109 @@ export default function Home() {
       <AlertDialog
         open={!!removeId}
         onOpenChange={(v) => {
-          if (!v) setRemoveId(null);
+          if (!v) {
+            setRemoveId(null);
+            setHardDelete(false);
+          }
         }}
       >
         <AlertDialogContent>
-          <AlertDialogTitle>{t('删除这条订阅记录？')}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {t('这条记录会被移除，实际订阅不会取消。')}
-          </AlertDialogDescription>
-          <div className="confirm-actions">
-            <AlertDialogCancel>{t('保留记录')}</AlertDialogCancel>
-            <button
-              className="primary-button danger"
-              onClick={() => {
-                commit(
-                  items.filter((s) => s.id !== removeId),
-                  t('订阅记录已删除'),
-                );
-                setRemoveId(null);
-              }}
-            >
-              {t('删除记录')}
-            </button>
-          </div>
+          {!hardDelete ? (
+            <>
+              <AlertDialogTitle>
+                {t("结束订阅 {name}？", { name: removeName })}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("它会从列表里移走，历史会保留在订阅足迹中。")}
+              </AlertDialogDescription>
+              <div className="confirm-actions">
+                <AlertDialogCancel>{t("取消")}</AlertDialogCancel>
+                <button
+                  className="primary-button end-button"
+                  onClick={() => {
+                    commit(
+                      items.map((s) =>
+                        s.id === removeId ? { ...s, endDate: todayKey } : s,
+                      ),
+                      t("已结束订阅，历史保留在订阅足迹中"),
+                    );
+                    setRemoveId(null);
+                  }}
+                >
+                  {t("结束订阅")}
+                </button>
+              </div>
+              <button
+                type="button"
+                className="hard-delete-link"
+                onClick={() => setHardDelete(true)}
+              >
+                {t("误添加？彻底删除")}
+              </button>
+            </>
+          ) : (
+            <>
+              <AlertDialogTitle>
+                {t("彻底删除 {name}？", { name: removeName })}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("订阅及其全部历史（含足迹记录）将被永久删除，无法恢复。")}
+              </AlertDialogDescription>
+              <div className="confirm-actions">
+                <AlertDialogCancel>{t("取消")}</AlertDialogCancel>
+                <button
+                  className="primary-button danger"
+                  onClick={() => {
+                    commit(
+                      items.filter((s) => s.id !== removeId),
+                      t("订阅及历史已彻底删除"),
+                    );
+                    setRemoveId(null);
+                    setHardDelete(false);
+                  }}
+                >
+                  {t("彻底删除")}
+                </button>
+              </div>
+            </>
+          )}
         </AlertDialogContent>
       </AlertDialog>
       <Dialog open={help} onOpenChange={setHelp}>
         <DialogContent className="help-dialog">
-          <DialogTitle>{t('你的个人订阅空间')}</DialogTitle>
-          <DialogDescription>{t('清晰记录，安心管理。')}</DialogDescription>
+          <DialogTitle>{t("你的个人订阅空间")}</DialogTitle>
+          <DialogDescription>{t("清晰记录，安心管理。")}</DialogDescription>
           <ShieldCheck size={32} />
           <p>
             {t(
-              '首次打开时显示的是可编辑的示例数据，费用不代表服务商的实时定价。',
+              "首次打开时显示的是可编辑的示例数据，费用不代表服务商的实时定价。",
             )}
           </p>
           <p>
             {t(
-              '续费日期是根据你填写的周期推算的，目前不发送系统通知，也不连接支付账户。',
+              "续费日期是根据你填写的周期推算的，目前不发送系统通知，也不连接支付账户。",
             )}
           </p>
         </DialogContent>
       </Dialog>
       <Dialog open={settings} onOpenChange={setSettings}>
         <DialogContent className="settings-dialog">
-          <DialogTitle>{t('设置')}</DialogTitle>
-          <DialogDescription>{t('管理你的 Subdock 偏好。')}</DialogDescription>
+          <DialogTitle>{t("设置")}</DialogTitle>
+          <DialogDescription>{t("管理你的 Subdock 偏好。")}</DialogDescription>
           <div className="settings-row settings-currency">
             <div>
-              <strong>{t('统计本位币')}</strong>
-              <p>{t('总览与洞察会将不同货币换算后汇总。')}</p>
+              <strong>{t("统计本位币")}</strong>
+              <p>{t("总览与洞察会将不同货币换算后汇总。")}</p>
               <p className="rate-status">
                 {rateDate
-                  ? t('汇率更新于 {date}', { date: rateDate })
-                  : rateStatus === 'loading'
-                    ? t('正在获取汇率…')
-                    : t('汇率暂不可用，原币金额仍完整保留。')}
+                  ? t("汇率更新于 {date}", { date: rateDate })
+                  : rateStatus === "loading"
+                    ? t("正在获取汇率…")
+                    : t("汇率暂不可用，原币金额仍完整保留。")}
               </p>
             </div>
             <Picker
-              label={t('统计本位币')}
+              label={t("统计本位币")}
               value={displayCurrency}
               onChange={(value) => changeDisplayCurrency(value as CurrencyCode)}
               options={currencies.map((currency) => ({
@@ -1359,15 +1546,15 @@ export default function Home() {
           {import.meta.env.DEV && (
             <div className="settings-row">
               <div>
-                <strong>{t('演示模式')}</strong>
-                <p>{t('使用示例订阅数据预览 Subdock 功能。')}</p>
+                <strong>{t("演示模式")}</strong>
+                <p>{t("使用示例订阅数据预览 Subdock 功能。")}</p>
               </div>
               <button
                 type="button"
                 role="switch"
                 aria-checked={demoMode}
-                aria-label={t('演示模式')}
-                className={demoMode ? 'demo-toggle is-on' : 'demo-toggle'}
+                aria-label={t("演示模式")}
+                className={demoMode ? "demo-toggle is-on" : "demo-toggle"}
                 onClick={() => toggleDemoMode(!demoMode)}
               >
                 <span />
@@ -1377,19 +1564,309 @@ export default function Home() {
         </DialogContent>
       </Dialog>
       <output
-        className={`toast-message ${notice ? 'visible' : ''}`}
+        className={`toast-message ${notice ? "visible" : ""}`}
         aria-live="polite"
       >
         {notice && (
           <>
             <Check size={17} />
             <span>{notice}</span>
-            <button onClick={() => setNotice('')} aria-label={t('关闭提示')}>
+            <button onClick={() => setNotice("")} aria-label={t("关闭提示")}>
               <X size={15} />
             </button>
           </>
         )}
       </output>
     </div>
+  );
+}
+
+type FootprintRange = "3m" | "1y" | "all";
+function FootprintPanel({
+  subs,
+  today,
+  firstUse,
+  convert,
+  currency,
+}: {
+  subs: Subscription[];
+  today: Date;
+  firstUse: string;
+  convert: Convert;
+  currency: CurrencyCode;
+}) {
+  const { t, locale } = useI18n();
+  const [range, setRange] = useState<FootprintRange>("1y");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const chartRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = chartRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() =>
+      setSize({ width: el.clientWidth, height: el.clientHeight }),
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [subs.length]);
+  const fp = buildFootprint(subs, today, firstUse, convert);
+  const money = (n: number) => formatCurrency(locale, n, currency);
+  const day = (key: string) =>
+    new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(
+      parseDate(key),
+    );
+  const fullDay = (key: string) =>
+    new Intl.DateTimeFormat(locale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }).format(parseDate(key));
+  const label = (n: FootprintNode) =>
+    n.kind === "origin"
+      ? t("开始记录")
+      : n.kind === "add"
+        ? `+${n.sub?.name}`
+        : n.kind === "cancel"
+          ? `−${n.sub?.name}`
+          : t("{name} 调价", { name: n.sub?.name || "" });
+  const tip = (n: FootprintNode) =>
+    n.kind === "origin"
+      ? `${t("开始记录")} · ${t("每天 {amount}", { amount: money(n.after) })}`
+      : `${day(n.date)} ${label(n)} ${money(n.before)} → ${money(n.after)}`;
+  if (!fp.nodes.length)
+    return (
+      <section className="footprint">
+        <h2 className="footprint-title">{t("订阅足迹")}</h2>
+        <p className="footprint-empty">
+          {t("还没有足迹，添加第一个订阅后这里会开始记录。")}
+        </p>
+      </section>
+    );
+  const todayKey = dateString(today);
+  const first = fp.nodes[0].date;
+  const shift = (months: number) =>
+    dateString(
+      new Date(today.getFullYear(), today.getMonth() - months, today.getDate()),
+    );
+  const rangeStart =
+    range === "3m" ? shift(3) : range === "1y" ? shift(12) : first;
+  const t0 = parseDate(rangeStart).getTime();
+  const t1 = Math.max(parseDate(todayKey).getTime(), t0 + 86400000);
+  const pad = { l: 10, r: 10, t: 18, b: 26 };
+  const w = Math.max(0, size.width - pad.l - pad.r);
+  const h = Math.max(0, size.height - pad.t - pad.b);
+  const max =
+    Math.max(...fp.nodes.map((n) => Math.max(n.before, n.after)), 1) * 1.15;
+  const x = (key: string) =>
+    pad.l + ((parseDate(key).getTime() - t0) / (t1 - t0)) * w;
+  const y = (v: number) => pad.t + h - (v / max) * h;
+  const startKey = first > rangeStart ? first : rangeStart;
+  const fromOrigin = startKey === first;
+  let line = `M${x(startKey)},${y(fromOrigin ? fp.nodes[0].after : fp.at(startKey))}`;
+  fp.nodes.forEach((n, i) => {
+    if (fromOrigin ? i > 0 : n.date > startKey)
+      line += ` H${x(n.date)} V${y(n.after)}`;
+  });
+  line += ` H${x(todayKey)}`;
+  const fill = `${line} V${pad.t + h} H${x(startKey)} Z`;
+  const visible = fp.nodes.filter((n) => n.date >= rangeStart);
+  // Keep the earlier dot in place and nudge a crowded neighbour 6px right.
+  const dotX: Record<string, number> = {};
+  let prevX = -Infinity;
+  for (const n of visible) {
+    let cx = x(n.date);
+    if (cx - prevX < 8) cx += 6;
+    dotX[n.id] = cx;
+    prevX = cx;
+  }
+  const ticks: { key: string; label: string }[] = [];
+  const spanMonths =
+    (parseDate(todayKey).getFullYear() - parseDate(rangeStart).getFullYear()) *
+      12 +
+    parseDate(todayKey).getMonth() -
+    parseDate(rangeStart).getMonth();
+  for (
+    let m = new Date(
+      parseDate(rangeStart).getFullYear(),
+      parseDate(rangeStart).getMonth() + 1,
+      1,
+    );
+    dateString(m) <= todayKey;
+    m = new Date(m.getFullYear(), m.getMonth() + 1, 1)
+  )
+    if (spanMonths < 6 || m.getMonth() % 3 === 0)
+      ticks.push({
+        key: dateString(m),
+        label: new Intl.DateTimeFormat(locale, { month: "short" }).format(m),
+      });
+  const active = fp.nodes.find((n) => n.id === selected);
+  const diff = fp.today - fp.yearStart;
+  const events = fp.nodes.filter((n) => n.kind !== "origin").reverse();
+  const origin = fp.nodes.find((n) => n.kind === "origin");
+  return (
+    <section className="footprint">
+      <div className="footprint-head">
+        <div>
+          <h2 className="footprint-title">{t("订阅足迹")}</h2>
+          <strong className="footprint-daily">
+            {t("每天 {amount}", { amount: money(fp.today) })}
+          </strong>
+          <p className="footprint-diff">
+            {Math.abs(diff) < 0.005
+              ? t("与年初持平")
+              : diff > 0
+                ? t("比年初多 {amount} / 天", { amount: money(diff) })
+                : t("比年初少 {amount} / 天", { amount: money(-diff) })}
+          </p>
+        </div>
+        <div className="footprint-range" role="tablist">
+          {(["3m", "1y", "all"] as const).map((r) => (
+            <button
+              key={r}
+              role="tab"
+              aria-selected={range === r}
+              className={range === r ? "selected" : ""}
+              onClick={() => setRange(r)}
+            >
+              {r === "3m"
+                ? t("近 3 月")
+                : r === "1y"
+                  ? t("近 1 年")
+                  : t("全部")}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="footprint-chart" ref={chartRef}>
+        {size.width > 0 && (
+          <svg width={size.width} height={size.height} aria-hidden="true">
+            <path d={fill} className="footprint-fill" />
+            <path d={line} className="footprint-line" />
+            {ticks.map((tk) => (
+              <text
+                key={tk.key}
+                x={
+                  x(tk.key) > size.width - 24
+                    ? size.width - pad.r
+                    : x(tk.key) < 24
+                      ? pad.l
+                      : x(tk.key)
+                }
+                y={size.height - 6}
+                textAnchor={
+                  x(tk.key) > size.width - 24
+                    ? "end"
+                    : x(tk.key) < 24
+                      ? "start"
+                      : "middle"
+                }
+                className="footprint-axis"
+              >
+                {tk.label}
+              </text>
+            ))}
+            {[...visible]
+              .sort(
+                (a, b) =>
+                  (a.kind === "origin" ? 1 : 0) - (b.kind === "origin" ? 1 : 0),
+              )
+              .map((n) => (
+                <circle
+                  key={n.id}
+                  cx={dotX[n.id]}
+                  cy={y(n.after)}
+                  r={selected === n.id ? 5.5 : 4}
+                  className={`footprint-dot ${n.kind === "origin" ? "origin" : ""}`}
+                  onMouseEnter={() => setSelected(n.id)}
+                  onClick={() => setSelected(n.id)}
+                />
+              ))}
+          </svg>
+        )}
+        {active && active.date >= rangeStart && (
+          <div
+            className="footprint-tip"
+            style={{
+              left: Math.min(
+                Math.max(dotX[active.id] ?? x(active.date), 90),
+                size.width - 90,
+              ),
+              top: y(active.after),
+            }}
+          >
+            {tip(active)}
+          </div>
+        )}
+      </div>
+      <ul className="footprint-list">
+        {events.map((n) => (
+          <li key={n.id}>
+            <button
+              type="button"
+              className={`footprint-row ${selected === n.id ? "selected" : ""}`}
+              onClick={() => setSelected(n.id)}
+            >
+              {n.sub && <Logo brand={n.sub.brand} name={n.sub.name} small />}
+              <span className="footprint-row-main">
+                <strong>{label(n)}</strong>
+                <small>{fullDay(n.date)}</small>
+              </span>
+              <span className="footprint-row-value">
+                {money(n.before)} → {money(n.after)} {t("/ 天")}
+              </span>
+              <span
+                className={`footprint-pill ${n.delta >= 0 ? "up" : "down"}`}
+              >
+                {n.delta >= 0 ? "+" : "−"}
+                {money(Math.abs(n.delta))}
+              </span>
+            </button>
+          </li>
+        ))}
+        {origin && (
+          <li className="footprint-origin">
+            <button
+              type="button"
+              className={`footprint-row ${selected === origin.id ? "selected" : ""}`}
+              aria-expanded={expanded}
+              onClick={() => {
+                setSelected(origin.id);
+                setExpanded(!expanded);
+              }}
+            >
+              <span className="footprint-mark">
+                <Layers size={14} strokeWidth={2.4} />
+              </span>
+              <span className="footprint-row-main">
+                <strong>{t("开始记录")}</strong>
+                <small>{fullDay(origin.date)}</small>
+                <small className="footprint-count">
+                  {t("包含 {count} 个订阅", {
+                    count: origin.members?.length || 0,
+                  })}
+                </small>
+              </span>
+              <span className="footprint-row-value">
+                {t("每天 {amount}", { amount: money(origin.after) })}
+              </span>
+            </button>
+            {expanded && (
+              <ul className="footprint-members">
+                {origin.members?.map((m) => (
+                  <li key={m.sub.id}>
+                    <Logo brand={m.sub.brand} name={m.sub.name} small />
+                    <span>{m.sub.name}</span>
+                    <span>
+                      {money(m.daily)} {t("/ 天")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        )}
+      </ul>
+    </section>
   );
 }
