@@ -81,9 +81,7 @@ import {
   isSubscription,
   normalizeSubscription,
   sampleSubscriptions,
-  chargesBetween,
   parseDate,
-  type Charge,
   type Subscription,
 } from '@/lib/subscriptions';
 import {
@@ -251,13 +249,6 @@ export default function Home() {
   const [view, setView] = useState('grid');
   const [status, setStatus] = useState('active');
   const [monthOffset, setMonthOffset] = useState(0);
-  const [calendarMode, setCalendarMode] = useState<'renew' | 'spend'>('renew');
-  const [dayDetail, setDayDetail] = useState<{
-    day: number;
-    left: number;
-    top?: number;
-    bottom?: number;
-  } | null>(null);
   const [priceDraft, setPriceDraft] = useState<{
     amount: string;
     date: string;
@@ -514,32 +505,7 @@ export default function Home() {
   const monthEventTotal = monthEventAmounts.every((amount) => amount !== null)
     ? monthEventAmounts.reduce<number>((sum, amount) => sum + (amount || 0), 0)
     : null;
-  const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
   const todayKey = dateString(today);
-  const monthCharges: (Charge & { converted: number })[] = active.flatMap(
-    (s) =>
-      chargesBetween(s, month, monthEnd, today).map((c) => ({
-        ...c,
-        converted: convertedAmount(s, c.amount) ?? 0,
-      })),
-  );
-  const chargesOn = (day: number) =>
-    monthCharges.filter((c) => c.date.getDate() === day);
-  const spentTotal = monthCharges
-    .filter((c) => dateString(c.date) <= todayKey)
-    .reduce((sum, c) => sum + c.converted, 0);
-  const forecastTotal = monthCharges
-    .filter((c) => dateString(c.date) > todayKey)
-    .reduce((sum, c) => sum + c.converted, 0);
-  const wholeMoney = (n: number) =>
-    new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: displayCurrency,
-      currencyDisplay: 'symbol',
-      maximumFractionDigits: 0,
-    }).format(n);
-  const spendTier = (n: number) =>
-    n < 1 ? 0 : n < 50 ? 1 : n < 200 ? 2 : n < 1000 ? 3 : 4;
   const recordPriceChange = () => {
     if (!priceDraft) return;
     const amount = Number(priceDraft.amount);
@@ -1014,59 +980,26 @@ export default function Home() {
                     }).format(month)}
                   </h2>
                   <p>
-                    {calendarMode === 'spend'
-                      ? monthCharges.length === 0
-                        ? t('本月暂无支出')
-                        : t('本月已支出 {spent} · 剩余预计 {forecast}', {
-                            spent: money(spentTotal, displayCurrency),
-                            forecast: money(forecastTotal, displayCurrency),
-                          })
-                      : t('{count} 笔续费 · 合计 {amount}', {
+                    {t('{count} 笔续费 · 合计 {amount}', {
                       count: monthEvents.length,
                       amount:
                         monthEventTotal === null
                           ? '—'
                           : money(monthEventTotal, displayCurrency),
-                        })}
+                    })}
                   </p>
                 </div>
                 <div className="calendar-controls">
-                  <div
-                    className="calendar-mode"
-                    role="tablist"
-                    aria-label={t('日历视图')}
-                  >
-                    {(['renew', 'spend'] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        role="tab"
-                        aria-selected={calendarMode === mode}
-                        className={calendarMode === mode ? 'selected' : ''}
-                        onClick={() => {
-                          setCalendarMode(mode);
-                          setDayDetail(null);
-                        }}
-                      >
-                        {mode === 'renew' ? t('续费') : t('支出')}
-                      </button>
-                    ))}
-                  </div>
                   <button
                     aria-label={t('上个月')}
-                    onClick={() => {
-                      setDayDetail(null);
-                      setMonthOffset((n) => n - 1);
-                    }}
+                    onClick={() => setMonthOffset((n) => n - 1)}
                   >
                     <ChevronLeft size={18} />
                   </button>
                   <button onClick={() => setMonthOffset(0)}>{t('本月')}</button>
                   <button
                     aria-label={t('下个月')}
-                    onClick={() => {
-                      setDayDetail(null);
-                      setMonthOffset((n) => n + 1);
-                    }}
+                    onClick={() => setMonthOffset((n) => n + 1)}
                   >
                     <ChevronRight size={18} />
                   </button>
@@ -1095,58 +1028,6 @@ export default function Home() {
                   },
                   (_, i) => {
                     const day = i + 1;
-                    if (calendarMode === 'spend') {
-                      const key = dateString(
-                        new Date(month.getFullYear(), month.getMonth(), day),
-                      );
-                      const charges = chargesOn(day);
-                      const sum = charges.reduce((n, c) => n + c.converted, 0);
-                      const when =
-                        key < todayKey
-                          ? 'past'
-                          : key === todayKey
-                            ? 'today'
-                            : 'future';
-                      const tier = when === 'past' ? spendTier(sum) : 0;
-                      return (
-                        <button
-                          type="button"
-                          disabled={!charges.length}
-                          className={`calendar-cell spend-cell ${when} tier-${tier} ${charges.length ? 'has-amount' : ''}`}
-                          key={day}
-                          onClick={(e) => {
-                            if (!charges.length) return;
-                            const r = e.currentTarget.getBoundingClientRect();
-                            const below =
-                              window.innerHeight - r.bottom >=
-                              120 + charges.length * 44;
-                            setDayDetail({
-                              day,
-                              left: Math.max(
-                                8,
-                                Math.min(r.left, window.innerWidth - 328),
-                              ),
-                              top: below ? r.bottom + 6 : undefined,
-                              bottom: below
-                                ? undefined
-                                : window.innerHeight - r.top + 6,
-                            });
-                          }}
-                        >
-                          <span className="day-number">{day}</span>
-                          {charges.length > 0 && (
-                            <span className="spend-amount">
-                              <strong>{wholeMoney(sum)}</strong>
-                              {charges.length > 1 && (
-                                <small>
-                                  {t('{count} 笔', { count: charges.length })}
-                                </small>
-                              )}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    }
                     const events = monthEvents.filter(
                       (s) => s.next.getDate() === day,
                     );
@@ -1176,69 +1057,8 @@ export default function Home() {
                 )}
               </div>
               <p className="calendar-caption">
-                {calendarMode === 'spend'
-                  ? t('过去的支出按续费周期、开始日期与调价记录推算。')
-                  : t('根据当前订阅的续费周期推算，不代表已实际扣款。')}
+                {t('根据当前订阅的续费周期推算，不代表已实际扣款。')}
               </p>
-              {dayDetail && calendarMode === 'spend' && (
-                <>
-                  <button
-                    type="button"
-                    className="day-detail-backdrop"
-                    aria-label={t('关闭')}
-                    onClick={() => setDayDetail(null)}
-                  />
-                  <section
-                    className="day-detail"
-                    aria-live="polite"
-                    style={{
-                      left: dayDetail.left,
-                      top: dayDetail.top,
-                      bottom: dayDetail.bottom,
-                    }}
-                  >
-                    <h3>
-                      {new Intl.DateTimeFormat(locale, {
-                        month: 'long',
-                        day: 'numeric',
-                        weekday: 'short',
-                      }).format(
-                        new Date(
-                          month.getFullYear(),
-                          month.getMonth(),
-                          dayDetail.day,
-                        ),
-                      )}
-                    </h3>
-                    <ul>
-                      {chargesOn(dayDetail.day).map((c) => (
-                        <li key={c.sub.id}>
-                          <Logo brand={c.sub.brand} name={c.sub.name} small />
-                          <span className="detail-name">{c.sub.name}</span>
-                          <span className="detail-amount">
-                            {money(c.amount, c.sub.currency)}
-                            {c.sub.currency !== displayCurrency && (
-                              <small>{money(c.converted, displayCurrency)}</small>
-                            )}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="detail-total">
-                      <span>{t('当日合计')}</span>
-                      <strong>
-                        {money(
-                          chargesOn(dayDetail.day).reduce(
-                            (n, c) => n + c.converted,
-                            0,
-                          ),
-                          displayCurrency,
-                        )}
-                      </strong>
-                    </div>
-                  </section>
-                </>
-              )}
             </section>
           </TabsContent>
           <TabsContent value="insights">
