@@ -20,6 +20,8 @@ export type Subscription = {
   startDate?: string;
   /** Recorded price changes, each effective from `date`. */
   priceChanges?: PriceChange[];
+  /** Set when the record is deleted; the subscription stops from this day. */
+  endDate?: string;
 };
 export const categories = [
   '影音娱乐',
@@ -288,6 +290,7 @@ export function isSubscription(value: unknown): value is Subscription {
     !Number.isNaN(parseDate(s.date).getTime()) &&
     dateString(parseDate(s.date)) === s.date &&
     (s.startDate === undefined || validDate(s.startDate)) &&
+    (s.endDate === undefined || validDate(s.endDate)) &&
     (s.priceChanges === undefined ||
       (Array.isArray(s.priceChanges) && s.priceChanges.every(isPriceChange)))
   );
@@ -300,9 +303,14 @@ export function normalizeSubscription(value: unknown): Subscription | null {
     currency: (value as { currency?: unknown }).currency || DEFAULT_CURRENCY,
   };
   if (!candidate.startDate) delete candidate.startDate;
+  if (!candidate.endDate) delete candidate.endDate;
   if (!Array.isArray(candidate.priceChanges)) delete candidate.priceChanges;
   else candidate.priceChanges = candidate.priceChanges.filter(isPriceChange);
   return isSubscription(candidate) ? candidate : null;
+}
+/** Deleted records stay stored for history but are hidden from their end day. */
+export function isLive(s: Subscription, today: Date) {
+  return !s.endDate || s.endDate > dateString(today);
 }
 export function sampleSubscriptions(today: Date): Subscription[] {
   const rows = [
@@ -314,6 +322,7 @@ export function sampleSubscriptions(today: Date): Subscription[] {
     ['Vercel', 'Pro', 1440, 'yearly', 20, '效率工具', 'vercel'],
     ['房租', '整租', 2300, 'monthly', 17, '生活支出', 'custom'],
     ['健身房', '月卡', 300, 'monthly', 10, '生活支出', 'custom'],
+    ['腾讯视频', '月度订阅', 30, 'monthly', 6, '影音娱乐', 'tencent-video'],
   ];
   const ago = (months: number, days = 0) =>
     dateString(
@@ -324,16 +333,15 @@ export function sampleSubscriptions(today: Date): Subscription[] {
       ),
     );
   const history: Record<number, Partial<Subscription>> = {
-    0: { startDate: ago(9) },
     1: { startDate: ago(5, 3) },
     2: {
       startDate: ago(8),
       priceChanges: [{ date: ago(3), amount: 145, previous: 108 }],
     },
-    3: { startDate: ago(14) },
     5: { startDate: ago(11, -20) },
     6: { startDate: ago(6) },
     7: { startDate: ago(4) },
+    8: { endDate: ago(2, 5) },
   };
   return rows.map(([name, plan, amount, cycle, days, category, brand], i) => {
     const next = new Date(today);

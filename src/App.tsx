@@ -79,6 +79,7 @@ import {
   nextRenewal,
   daysUntil,
   isSubscription,
+  isLive,
   normalizeSubscription,
   sampleSubscriptions,
   parseDate,
@@ -431,7 +432,8 @@ export default function Home() {
       : items.filter((item) => !item.id.startsWith('sample-'));
     if (next !== items) commit(next, '');
   };
-  const active = items.filter((s) => s.active);
+  const liveItems = items.filter((s) => isLive(s, today));
+  const active = liveItems.filter((s) => s.active);
   const convertedAmount = (s: Subscription, amount = s.amount) =>
     convertCurrency(amount, s.currency, displayCurrency, exchangeRates);
   const convertedMonthlyAmount = (s: Subscription) =>
@@ -444,14 +446,14 @@ export default function Home() {
   const totalValue = total || 0;
   const upcoming = useMemo(
     () =>
-      items
+      liveItems
         .filter((s) => s.active)
         .map((s) => ({ ...s, next: nextRenewal(s, today) }))
         .sort((a, b) => a.next.getTime() - b.next.getTime()),
-    [items, today],
+    [liveItems, today],
   );
   const nextWeek = upcoming.filter((s) => daysUntil(s.next, today) <= 7);
-  const filtered = items
+  const filtered = liveItems
     .filter(
       (s) =>
         (status === 'all' || s.active === (status === 'active')) &&
@@ -774,7 +776,7 @@ export default function Home() {
                 <div>
                   <h2>
                     {t('我的订阅')}
-                    <span>{items.length}</span>
+                    <span>{liveItems.length}</span>
                   </h2>
                   <p>{t('那些让日常更美好的小小投资。')}</p>
                 </div>
@@ -820,7 +822,7 @@ export default function Home() {
                       aria-pressed={category === c}
                     >
                       {t(c)}
-                      {c === '全部' && <span>{items.length}</span>}
+                      {c === '全部' && <span>{liveItems.length}</span>}
                     </button>
                   ))}
                 </div>
@@ -1420,7 +1422,9 @@ export default function Home() {
               className="primary-button danger"
               onClick={() => {
                 commit(
-                  items.filter((s) => s.id !== removeId),
+                  items.map((s) =>
+                    s.id === removeId ? { ...s, endDate: todayKey } : s,
+                  ),
                   t('订阅记录已删除'),
                 );
                 setRemoveId(null);
