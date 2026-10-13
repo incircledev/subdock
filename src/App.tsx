@@ -1703,9 +1703,21 @@ function FootprintPanel({
             {ticks.map((tk) => (
               <text
                 key={tk.key}
-                x={x(tk.key)}
+                x={
+                  x(tk.key) > size.width - 24
+                    ? size.width - pad.r
+                    : x(tk.key) < 24
+                      ? pad.l
+                      : x(tk.key)
+                }
                 y={size.height - 6}
-                textAnchor="middle"
+                textAnchor={
+                  x(tk.key) > size.width - 24
+                    ? 'end'
+                    : x(tk.key) < 24
+                      ? 'start'
+                      : 'middle'
+                }
                 className="footprint-axis"
               >
                 {tk.label}
